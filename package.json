@@ -1,0 +1,34 @@
+{
+  "name": "chess",
+  "version": "1.0.0",
+  "description": "A chess application",
+  "scripts": {
+    "start": "npm run build && node dist/chess/index.js",
+    "dev": "npm run build && nodemon src/chess/index.ts",
+    "build": "tsc && mkdir -p dist/public && cp -r src/public/* dist/public/",
+    "lint": "eslint .",
+    "lint-fix": "eslint . --fix",
+    "cd": "madge --circular ./src"
+  },
+  "author": "Avichal Gupta",
+  "license": "ISC",
+  "dependencies": {
+    "@eslint/js": "^9.13.0",
+    "axios": "^1.7.7",
+    "express": "^4.21.2",
+    "globals": "^15.11.0",
+    "nodemon": "^3.1.7",
+    "socket.io": "^4.8.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2",
+    "uuid": "^11.0.3",
+    "uuidv4": "^6.2.13"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "@types/socket.io": "^3.0.2",
+    "eslint": "^9.13.0"
+  },
+  "keywords": []
+}

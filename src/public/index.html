@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Client</title>
+    <!-- Ensure the Socket.IO client library is included correctly -->
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <h1>Socket.IO Client</h1>
+    <button onclick="sendMessage()">Start Game</button>
+    <div id="response"></div>
+
+    <div class="chess-container">
+        <div class="chess-board" id="chessBoard"></div>
+    </div>
+
+    <script>
+
+        const chessBoard = document.getElementById('chessBoard');
+        for (let i = 0; i < 8; i++) {
+			for (let j = 0; j < 8; j++) {
+                const square = document.createElement('div');
+                // Apply background based on even/odd index
+                if ((i + j) % 2 === 0) {
+                    square.classList.add('light');
+                } else {
+                    square.classList.add('dark');
+                }
+                chessBoard.appendChild(square);
+			}
+		}
+        let socket;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize the socket connection after loading the client library
+            socket = io();
+
+            // Send message function
+            function sendMessage() {
+                socket.emit('message', 'hi');
+            }
+
+            function markLegalMove(piecePosition, legalMove) {
+                const row = legalMove.position[0];
+                const col = legalMove.position[1];
+                const index = row * 8 + col;
+                const square = chessBoard.children[index];
+                square.classList.add('piece','possibleMove');
+                square.onclick = () => makeMove(piecePosition,legalMove);
+            }
+
+            function pieceSquareOnClick(piecePosition) {
+                console.log('inside onclick', piecePosition);
+                socket.emit('getLegalMoves', {
+                    piecePosition,
+                })
+                
+                socket.on('showLegalMoves', (data) => {      
+                    const legalMoves = data.legalMoves;
+                    const piecePosition = data.piecePosition;
+
+                    legalMoves.forEach((position) => {
+                        markLegalMove(piecePosition, position);
+                    })
+                })
+            }
+
+            function makeMove(piecePosition, legalMove) {
+                socket.emit('makeMove',{
+                    piecePosition,
+                    legalMove
+                });
+
+                socket.on('nextPlayer', (data) => {
+                    console.log('next player: ', data);
+                    const pieceOnPosition = data.pieceOnPosition;
+
+                    const row = data.fromPosition[0];
+                    const col = data.fromPosition[1];
+                    const index = row * 8 + col;
+                    const square = chessBoard.children[index];
+                    square.classList.remove('possibleMove', pieceOnPosition.type.toLowerCase());
+                    square.removeEventListener('onclick', () => makeMove(piecePosition,legalMove));
+
+                    const row2 = data.toPosition[0];
+                    const col2 = data.toPosition[1];
+                    const index2 = row2 * 8 + col2;
+                    const square2 = chessBoard.children[index2];
+                    square2.classList.remove('possibleMove');
+                    square2.classList.add(pieceOnPosition.color, pieceOnPosition.type.toLowerCase());
+                    square2.onclick = () => pieceSquareOnClick(data.toPosition);
+                })
+            }
+
+            // Listen for response from server
+            socket.on('response', (data) => {
+                document.getElementById('response').innerText = `Server says: ${data.message}`;
+                chessBoard.innerHTML = '';
+
+                console.log('d: ', data.game);
+                const chessBoardFromBackend = data.game.boardEntity.board;
+
+                for (let i = 0; i < 8; i++) {
+                    for (let j = 0; j < 8; j++) {
+                        const square = document.createElement('div');
+                        // Apply background based on even/odd index
+                        if (chessBoardFromBackend[i][j][0] === 0) {
+                            square.classList.add('light');
+                        } else {
+                            square.classList.add('dark');
+                        }
+
+                        if (chessBoardFromBackend[i][j][1] !== null) {
+                            const pieceType = chessBoardFromBackend[i][j][1].type.toLowerCase();
+                            square.classList.add('piece', chessBoardFromBackend[i][j][1].color, pieceType);
+                            square.onclick = () => pieceSquareOnClick([i, j]);
+                        } else {
+                            square.removeEventListener('onclick', () => pieceSquareOnClick([i, j]));
+                            square.classList.remove('piece');
+                        }
+                        chessBoard.appendChild(square);
+                    }
+                }
+            });
+
+            // Make sendMessage globally accessible
+            window.sendMessage = sendMessage;
+        });
+    </script>
+</body>
+</html>
