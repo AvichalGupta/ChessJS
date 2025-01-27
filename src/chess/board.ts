@@ -1,4 +1,5 @@
 import { BoardType, ColorTypes, PieceType, PromotedPiece } from "./constants";
+import { getPositionString } from "./helper/helper";
 import { Rook, Knight, Bishop, Queen, King, Pawn } from "./pieces";
 
 export class ChessBoard {
@@ -6,7 +7,7 @@ export class ChessBoard {
 	globalMoveCounter: number;
     constructor() {
 		this.globalMoveCounter = 0;
-		this.board = new Array(8);
+		this.board = new Map<string, PieceType>();
 		this.initializeBoard();
 	}
 
@@ -14,19 +15,53 @@ export class ChessBoard {
 		const isKingSidePiece = centerPiece === 'Q';
 		switch (column) {
 		case 0: {
-			return new Rook([ color === ColorTypes.white ? row : 7 - row, isKingSidePiece ? column : 7 - column ], color);
+			if (color === ColorTypes.white) {
+				if (isKingSidePiece) {
+					return new Rook(getPositionString(row, column), color);
+				}
+				return new Rook(getPositionString(row, 7 - column), color);
+			}
+			if (isKingSidePiece) {
+				return new Rook(getPositionString(7 - row, column), color);
+			}
+			return new Rook(getPositionString(7 - row, 7 - column), color);
 		}
 		case 1: {
-			return new Knight([ color === ColorTypes.white ? row : 7 - row, isKingSidePiece ? column : 7 - column ], color);
+			if (color === ColorTypes.white) {
+				if (isKingSidePiece) {
+					return new Knight(getPositionString(row, column), color);
+				}
+				return new Knight(getPositionString(row, 7 - column), color);
+			}
+			if (isKingSidePiece) {
+				return new Knight(getPositionString(7 - row, column), color);
+			}
+			return new Knight(getPositionString(7 - row, 7 - column), color);
 		}
 		case 2: {
-			return new Bishop([ color === ColorTypes.white ? row : 7 - row, isKingSidePiece ? column : 7 - column ], color);
+			if (color === ColorTypes.white) {
+				if (isKingSidePiece) {
+					return new Bishop(getPositionString(row, column), color);
+				}
+				return new Bishop(getPositionString(row, 7 - column), color);
+			}
+			if (isKingSidePiece) {
+				return new Bishop(getPositionString(7 - row, column), color);
+			}
+			return new Bishop(getPositionString(7 - row, 7 - column), color);
 		}
 		case 3: {
-			if (centerPiece === 'Q')
-				return new Queen([ color === ColorTypes.white ? row : 7 - row, column ], color);
-
-			return new King([ color === ColorTypes.white ? row : 7 - row, 7 - column ], color);
+			if (centerPiece === 'Q') {
+				if (color === ColorTypes.white) {
+					return new Queen(getPositionString(row, column), color);
+				}
+				return new Queen(getPositionString(7 - row, column), color);
+			} else {
+				if (color === ColorTypes.white) {
+					return new King(getPositionString(row, 7 - column), color);
+				}
+				return new King(getPositionString(7 - row, 7 - column), color);
+			}
 		}
 		}
 		return null;
@@ -39,7 +74,17 @@ export class ChessBoard {
 			return this.getNonPawnPieces(row, column, color, centerPiece);
 		}
 		case 1: {
-			return new Pawn([ color === ColorTypes.white ? row : 7 - row, isKingSidePiece ? column : 7 - column ], color);
+			if (color === ColorTypes.white) {
+				if (isKingSidePiece) {
+					return new Pawn(getPositionString(row, column), color);
+				}
+				return new Pawn(getPositionString(row, 7 - column), color);
+			}
+			if (isKingSidePiece) {
+				return new Pawn(getPositionString(7 - row, column), color);
+			}
+			return new Pawn(getPositionString(7 - row, 7 - column), color);
+
 		}
 		default: {
 			return null;
@@ -48,15 +93,12 @@ export class ChessBoard {
 	}
 
 	initializeBoard() {
-		this.board = new Array(8);
-		for (let i = 0; i < 4; i++) {
-			this.board[i] = new Array(8);
-			this.board[7 - i] = new Array(8);
+		for (let i = 0; i < 2; i++) {
 			for (let j = 0; j < 4; j++) {
-				this.board[i][j] = [ (i + j) % 2, this.getInitialPiece(i, j, ColorTypes.white, 'Q') ];
-				this.board[i][7 - j] = [ (i + 7 - j) % 2, this.getInitialPiece(i, j, ColorTypes.white, 'Kg') ];
-				this.board[7 - i][j] = [ ((7 - i + j) % 2), this.getInitialPiece(i, j, ColorTypes.black, 'Q') ];
-				this.board[7 - i][7 - j] = [ ((7 - i + 7 - j) % 2), this.getInitialPiece(i, j, ColorTypes.black, 'Kg') ];
+				this.board.set(getPositionString(i, j), this.getInitialPiece(i, j, ColorTypes.white, 'Q'));
+				this.board.set(getPositionString(i, 7 - j), this.getInitialPiece(i, j, ColorTypes.white, 'Kg'));
+				this.board.set(getPositionString(7 - i, j), this.getInitialPiece(i, j, ColorTypes.black, 'Q'));
+				this.board.set(getPositionString(7 - i, 7 - j), this.getInitialPiece(i, j, ColorTypes.black, 'Kg'));
 			}
 		}
 	}
@@ -65,14 +107,22 @@ export class ChessBoard {
 		return this.board;
 	}
 
-	setBoard(currentPosition: number[], updatedPosition: number[]) {
-		this.board[updatedPosition[0]][updatedPosition[1]][1] = this.board[currentPosition[0]][currentPosition[1]][1];
-		this.board[currentPosition[0]][currentPosition[1]][1] = null;
+	setBoard(currentPosition: string, updatedPosition: string) {
+		const elementOnCurrentPosition = this.board.get(currentPosition);
+		if (!elementOnCurrentPosition) {
+			throw new Error('Cannot update board, element not present on position!');
+		}
+		this.board.set(updatedPosition, elementOnCurrentPosition);
+		this.board.delete(currentPosition);
 		this.incrementGlobalMoveCounter();
 	}
 
-	replacePawnWithPromotedPiece(currentPosition: number[], promotedPiece: PromotedPiece) {
-		this.board[currentPosition[0]][currentPosition[1]][1] = promotedPiece;
+	replacePawnWithPromotedPiece(currentPosition: string, promotedPiece: PromotedPiece) {
+		const elementOnCurrentPosition = this.board.get(currentPosition);
+		if (!elementOnCurrentPosition) {
+			throw new Error('Cannot update board during promotion, element not present on position!');
+		}
+		this.board.set(currentPosition, promotedPiece);
 	}
 
 	getGlobalMoveCounter() {

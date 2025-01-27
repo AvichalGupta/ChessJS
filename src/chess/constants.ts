@@ -46,20 +46,18 @@ enum PinDirections {
 };
 
 interface ILegalMoves {
-	position: number[];
+	position: string;
 	moveType: MoveTypes;
 }
 
-type BoardType = BoardSquareType[][];
-
-type BoardSquareType = [number, PieceType];
+type BoardType = Map<string, PieceType>;
 
 type PieceType = null | Pawn | Rook | Bishop | Queen | Knight | King;
 
 type PromotedPiece = Rook | Bishop | Queen | Knight;
 
 interface IPlayerMove {
-	currentPosition: number[];
+	currentPosition: string;
 	move: IMove;
 	pieceToBeMoved: PieceType;
 	pieceToBeCaptured: PieceType | null;
@@ -68,7 +66,7 @@ interface IPlayerMove {
 	piecesCaptured: Stack<PieceType>;
 }
 
-interface IMove { position: number[], moveType: MoveTypes };
+interface IMove { position: string, moveType: MoveTypes };
 
 export {
 	PieceTypes,
@@ -78,7 +76,6 @@ export {
 	PinDirections,
 	ILegalMoves,
 	BoardType,
-	BoardSquareType,
 	PieceType,
 	IPlayerMove,
 	IMove,

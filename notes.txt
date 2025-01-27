@@ -1,0 +1,42 @@
+Refactoring:
+
+1. Change 2D Array to map
+    a. Change number[] to string.
+    b. Decide String format.
+    c. Add validations on string format during input from user.
+2. Change all 2D array dependency to map.
+
+Decide String format:
+Usecase:
+    1. While loop to iterate 2d array and check for pieces.
+    2. Checks - need to verify if king is attacked by any enemy piece (P/K/B/R/Q).
+    3. Pins - need to verify if piece is pinned to ally king by any enemy piece (B/R/Q).
+    4. Captures - need to verify if square being attacked by ally piece has an enemey piece(P/K/B/R/Q) that can be captured. If enemy piece is the enemy king then it is a check and capture is not possible.
+        a. En-passant - If enemy pawn is on same row as ally pawn and enemy pawn has moved 2 steps as it's first move and is the last move played by opponent, it can be captured.
+    5. Promotions - need to verify if the square that is being attacked or advanced to by ally pawn is at the end of the board, for promotion.
+    6. Castling - Check if the sqaures between the ally king and rook is empty(not occupied by ally pieces) and is not attacked from a distance by enemy pieces(P/K/B/R/Q/A).
+    7. Draws - Either by 3 move repetition or by 50 move rule(no pawns have advanced and no capture in last 50 moves) or if there are insufficient pieces on board.
+    8. Checkmate - Enemy king cannot move and is attacked, there is no enemy piece that can be sacrificed/captured to stop the checkmate.
+
+Solution:
+    1. Use index based string - '00' etc.
+    2. Use piece id based strings - 'WP1'
+        W - color (W - white, B - black)
+        P - pieceType (P - pawn, K - knight, B - bishop, R - rook, Q - queen, A - king)
+        1 - number of piece ( pawn(0-7), queen(0-8), bishop/knight/rook(0-9), king(NA))
+        WP1 - a white pawn at position [1,1] or '11'
+
+Advantages:
+Solution 1: 
+    1. FE can send index based position as a string, no need for FE to create complex map keys.
+    2. Existing logic using while loops etc does not have to be changed, minimal changes would be required.
+
+Solution 2:
+    1. BE logic can efficiently use map to check for checks, pins, captures, promotions etc.
+
+Disadvantages:
+Solution 1:
+    1. Not an effective way to use the map. Why loop over each position, when each individual piece can be directly checked. (ex: Check if enemy rooks are on same row or column, rather than looping over each square till the end of the board.)
+
+Solution 2:
+    1. Requires extensive code changes.

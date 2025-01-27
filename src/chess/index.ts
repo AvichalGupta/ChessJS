@@ -27,13 +27,19 @@ io.on('connection', (socket) => {
 	socket.on('message', (message) => {
 		socket.emit('response', {
 			message: `Server received: ${message}`,
-			game: game,
+			game: {
+				...game,
+				chessBoard: {
+					board: Object.fromEntries(game.getBoard())
+				}
+			},
 		});
 	});
 
 	socket.on('getLegalMoves', (message) => {
 		const piecePosition = message.piecePosition;
-		const legalMoves = game.currentMovePlayedBy.selectPiece(game.boardEntity, piecePosition)
+		console.log('getLegalMoves: ', piecePosition);
+		const legalMoves = game.currentMovePlayedBy.selectPiece(game.chessBoard, piecePosition)
 		socket.emit('showLegalMoves', {
 			legalMoves,
 			piecePosition
@@ -43,10 +49,10 @@ io.on('connection', (socket) => {
 	socket.on('makeMove', (message) => {
 		// console.log('makeMove', message);
 		const piecePosition = message.piecePosition;
-		const chessBoard = game.boardEntity.getBoard();
-		const pieceOnPosition = chessBoard[piecePosition[0]][piecePosition[1]][1];
+		const chessBoard = game.chessBoard.getBoard();
+		const pieceOnPosition = chessBoard.get(piecePosition);
 		console.log('board before: ', JSON.stringify(game.getBoard()))
-		game.currentMovePlayedBy.makeMove(game.boardEntity, piecePosition, message.legalMove);
+		game.currentMovePlayedBy.makeMove(game.chessBoard, piecePosition, message.legalMove);
 		console.log('board after: ', JSON.stringify(game.getBoard()))
 		game.passMoveToNextPlayer();
 		game.getBoard();

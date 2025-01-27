@@ -3,70 +3,44 @@ import { PieceType, ColorTypes } from './constants';
 import { Stack } from './datastructures/stack';
 import { ChessBoard } from './board';
 
-
 export class ChessGame {
-	boardEntity: ChessBoard;
+	chessBoard: ChessBoard;
 	player1: Player;
 	player2: Player;
 	currentMovePlayedBy: Player;
 	constructor() {
-		this.boardEntity = new ChessBoard();
+		this.chessBoard = new ChessBoard();
+		console.log('chessBoard: ', this.chessBoard);
 
 		const isEven = new Date().getTime() % 2 == 0;
-		const piecesAvailable = {
-			white: new Stack<PieceType>(15, [
-				...this.boardEntity.getBoard()[1].map((row) => {
-					return row[1];
-				}), ...this.boardEntity.getBoard()[0].map((row) => {
-					return row[1];
-				})
-			]),
-			black: new Stack<PieceType>(15, [
-				...this.boardEntity.getBoard()[6].map((row) => {
-					return row[1];
-				}), ...this.boardEntity.getBoard()[7].map((row) => {
-					return row[1];
-				})
-			]) 
-		};
 		if (isEven) {
-			this.player1 = new Player(ColorTypes.white, 'Player 1', piecesAvailable.white);
-			this.player2 = new Player(ColorTypes.black, 'Player 2', piecesAvailable.black);
-			this.currentMovePlayedBy = this.player1;
+			this.player1 = new Player(ColorTypes.white, 'Player 1');
+			this.player2 = new Player(ColorTypes.black, 'Player 2');
 		} else {
-			this.player1 = new Player(ColorTypes.black, 'Player 1', piecesAvailable.black);
-			this.player2 = new Player(ColorTypes.white, 'Player 2', piecesAvailable.white);
-			this.currentMovePlayedBy = this.player2;
+			this.player1 = new Player(ColorTypes.black, 'Player 1');
+			this.player2 = new Player(ColorTypes.white, 'Player 2');
 		}
+
+		if (isEven) {
+			this.currentMovePlayedBy = this.player1;
+		}
+		this.currentMovePlayedBy = this.player2;
 	}
 
 	selectPlayers() {
 		const isEven = new Date().getTime() % 2 == 0;
-		const piecesAvailable = {
-			white: new Stack<PieceType>(15, [
-				...this.boardEntity.getBoard()[1].map((row) => {
-					return row[1];
-				}), ...this.boardEntity.getBoard()[0].map((row) => {
-					return row[1];
-				})
-			]),
-			black: new Stack<PieceType>(15, [
-				...this.boardEntity.getBoard()[6].map((row) => {
-					return row[1];
-				}), ...this.boardEntity.getBoard()[7].map((row) => {
-					return row[1];
-				})
-			]) 
-		};
 		if (isEven) {
-			this.player1 = new Player(ColorTypes.white, 'Player 1', piecesAvailable.white);
-			this.player2 = new Player(ColorTypes.black, 'Player 2', piecesAvailable.black);
-			this.currentMovePlayedBy = this.player1;
+			this.player1 = new Player(ColorTypes.white, 'Player 1');
+			this.player2 = new Player(ColorTypes.black, 'Player 2');
 		} else {
-			this.player1 = new Player(ColorTypes.black, 'Player 1', piecesAvailable.black);
-			this.player2 = new Player(ColorTypes.white, 'Player 2', piecesAvailable.white);
-			this.currentMovePlayedBy = this.player2;
+			this.player1 = new Player(ColorTypes.black, 'Player 1');
+			this.player2 = new Player(ColorTypes.white, 'Player 2');
 		}
+
+		if (isEven) {
+			this.currentMovePlayedBy = this.player1;
+		}
+		this.currentMovePlayedBy = this.player2;
 	}
 
 	getCurrentMovePlayer() {
@@ -74,7 +48,7 @@ export class ChessGame {
 	}
 
 	getBoard() {
-		return this.boardEntity.getBoard();
+		return this.chessBoard.getBoard();
 	}
 
 	passMoveToNextPlayer() { 
@@ -90,7 +64,7 @@ export class ChessGame {
 	}
 
 	resetGame() {
-		this.boardEntity = new ChessBoard();
+		this.chessBoard = new ChessBoard();
 		this.selectPlayers();
 	}
 

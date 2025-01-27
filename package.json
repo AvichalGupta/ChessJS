@@ -8,7 +8,7 @@
     "build": "tsc && mkdir -p dist/public && cp -r src/public/* dist/public/",
     "lint": "eslint .",
     "lint-fix": "eslint . --fix",
-    "cd": "madge --circular ./src"
+    "cd": "madge --circular ./src"    
   },
   "author": "Avichal Gupta",
   "license": "ISC",

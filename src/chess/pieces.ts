@@ -1,9 +1,10 @@
 import { ChessBoard } from "./board";
 import { PieceTypes, MoveTypes, ColorTypes, PinDirections, generateRandomPieceId, ILegalMoves, PromotedPiece, BoardType, PieceType } from "./constants";
+import { getPositionString, validatePosition } from "./helper/helper";
 
 class Piece {
 	protected value: number;
-	protected currentPosition: number[];
+	protected currentPosition: string;
 	protected pieceId: string;
 	protected color: ColorTypes;
 	protected captured: boolean;
@@ -15,7 +16,7 @@ class Piece {
 	protected legalMoves: ILegalMoves[];
 	constructor(
 		value: number, 
-		currentPosition: number[], 
+		currentPosition: string, 
 		color: ColorTypes, 
 		type: PieceTypes, 
 		moveCounter = 0, 
@@ -48,11 +49,8 @@ class Piece {
 		return this.currentPosition;
 	}
 
-	updateCurrentPosition(updatedPosition: number[]) {
-		if (
-			(updatedPosition[0] < 0 || updatedPosition[0] > 7) ||
-			(updatedPosition[1] < 0 || updatedPosition[1] > 7)
-		) throw new Error('Piece Position being updated out of bounds!');
+	updateCurrentPosition(updatedPosition: string) {
+		validatePosition(updatedPosition);
 		this.currentPosition = updatedPosition;
 	}
 
@@ -60,15 +58,15 @@ class Piece {
 		this.moveCounter += 1;
 	}
 
-	moveToPosition(boardEntity: ChessBoard, updatedPosition: number[]) {
-		boardEntity.setBoard(this.getCurrentPosition(), updatedPosition);
+	moveToPosition(chessBoard: ChessBoard, updatedPosition: string) {
+		chessBoard.setBoard(this.getCurrentPosition(), updatedPosition);
 		this.incrementMoveCounter();
 		this.updateCurrentPosition(updatedPosition);
 	}
 
 	// This function overrides the current position of the piece with the updated position.
-	makeMove(boardEntity: ChessBoard, updatedPosition: number[]) {
-		this.moveToPosition(boardEntity, updatedPosition);
+	makeMove(chessBoard: ChessBoard, updatedPosition: string) {
+		this.moveToPosition(chessBoard, updatedPosition);
 		this.resetLegalMoves();
 	}
 
@@ -153,8 +151,9 @@ class Piece {
 	getAllPossibleCapturesOnAttackingPiece(board: BoardType, currentRow: number, currentColumn: number, currentGlobalMoveCounter: number = 0) {
 
 		const maxDistanceFromEdge = Math.max(currentRow, 7 - currentRow, currentColumn, 7 - currentColumn);
-		const pieceOnCurrentPositon = board[currentRow][currentColumn][1];
-		let pieceOnPosition: PieceType | null = null;
+		const pieceOnCurrentPositon = board.get(getPositionString(currentRow, currentColumn));
+		
+		let pieceOnPosition: PieceType | undefined;
 
 		function checkIfEnemyRookOrBishopOrQueenCanCapture() {
 			let moveUpBy = currentRow;
@@ -165,7 +164,7 @@ class Piece {
 			const possibleProtectionPieceTypes = [ PieceTypes.queen, PieceTypes.rook ];
 			const possibleDiagonalProtectionPieceTypes = [ PieceTypes.queen, PieceTypes.bishop ];
 
-			if (pieceOnCurrentPositon === null) throw new Error('Invalid operation on current location! Piece not found.');
+			if (!pieceOnCurrentPositon) throw new Error('Invalid operation on current location! Piece not found.');
 
 			let steps = 0;
 
@@ -179,9 +178,9 @@ class Piece {
 				
 				if (moveLeftBy >= 0) {
 					
-					pieceOnPosition = board[currentRow][moveLeftBy][1];
+					pieceOnPosition = board.get(getPositionString(currentRow, moveLeftBy));
 					
-					if (pieceOnPosition !== null)
+					if (pieceOnPosition)
 						return (
 							pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 							possibleProtectionPieceTypes.includes(pieceOnCurrentPositon.getType()) &&
@@ -192,9 +191,9 @@ class Piece {
 				
 				if (moveRightBy <= 7) {
 					
-					pieceOnPosition = board[currentRow][moveRightBy][1];
+					pieceOnPosition = board.get(getPositionString(currentRow, moveRightBy));
 					
-					if (pieceOnPosition !== null)
+					if (pieceOnPosition)
 						return (
 							pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 							possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
@@ -205,9 +204,9 @@ class Piece {
 				
 				if (moveUpBy <= 7) {
 					
-					pieceOnPosition = board[moveUpBy][currentColumn][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy, currentColumn));
 					
-					if (pieceOnPosition !== null)
+					if (pieceOnPosition)
 						return (
 							pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 							possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
@@ -218,9 +217,9 @@ class Piece {
 				
 				if (moveDownBy >= 0) {
 					
-					pieceOnPosition = board[moveDownBy][currentColumn][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy, currentColumn));
 					
-					if (pieceOnPosition !== null)
+					if (pieceOnPosition)
 						return (
 							pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 							possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
@@ -231,9 +230,9 @@ class Piece {
 				
 				if (moveUpBy <= 7 && moveLeftBy >= 0) {
 					
-					pieceOnPosition = board[moveUpBy][moveLeftBy][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy, moveLeftBy));
 					
-					if (pieceOnPosition !== null)
+					if (pieceOnPosition)
 						return (
 							pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 							possibleDiagonalProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
@@ -244,9 +243,9 @@ class Piece {
 				
 				if (moveDownBy >= 0 && moveRightBy <= 7) {
 					
-					pieceOnPosition = board[moveDownBy][moveRightBy][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy, moveRightBy));
 					
-					if (pieceOnPosition !== null)
+					if (pieceOnPosition)
 						return (
 							pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 							possibleDiagonalProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
@@ -257,9 +256,9 @@ class Piece {
 				
 				if (moveUpBy <= 7 && moveRightBy <= 7) {
 					
-					pieceOnPosition = board[moveUpBy][moveRightBy][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy, moveRightBy));
 					
-					if (pieceOnPosition !== null)
+					if (pieceOnPosition)
 						return (
 							pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 							possibleDiagonalProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
@@ -270,9 +269,9 @@ class Piece {
 				
 				if (moveDownBy >= 0 && moveLeftBy >= 0) {
 					
-					pieceOnPosition = board[moveDownBy][moveLeftBy][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy, moveLeftBy));
 					
-					if (pieceOnPosition !== null)
+					if (pieceOnPosition)
 						return (
 							pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 							possibleDiagonalProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
@@ -288,16 +287,16 @@ class Piece {
 		function checkIfEnemyKnightCanCapture() {
 			const possibleProtectionPieceTypes = [ PieceTypes.knight ];
 
-			if (pieceOnCurrentPositon === null) throw new Error('Invalid operation on current location! Piece not found.');
+			if (!pieceOnCurrentPositon) throw new Error('Invalid operation on current location! Piece not found.');
 
 			if (currentRow - 2 >= 0) {
 
 				if (currentColumn - 1 >= 0) {
-					pieceOnPosition = board[currentRow - 2][currentColumn - 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow - 2, currentColumn - 1));
 	
 					// Handling Backward Row Left Movement.
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 						possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 						!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
@@ -306,7 +305,7 @@ class Piece {
 				}
 
 				if (currentColumn + 1 <= 7) {
-					pieceOnPosition = board[currentRow - 2][currentColumn + 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow - 2, currentColumn + 1));
 	
 					// Handling Backward Row Right Movement.
 					if (
@@ -323,11 +322,11 @@ class Piece {
 			if (currentRow + 2 <= 7) {
 
 				if (currentColumn - 1 >= 0) {
-					pieceOnPosition = board[currentRow + 2][currentColumn - 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow + 2, currentColumn - 1));
 	
 					// Handling Upward Row Left Movement.
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 						possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 						!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
@@ -336,11 +335,11 @@ class Piece {
 				}
 
 				if (currentColumn + 1 <= 7) {
-					pieceOnPosition = board[currentRow + 2][currentColumn + 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow + 2, currentColumn + 1));
 					
 					// Handling Upward Row Right Movement.
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 						possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 						!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
@@ -353,11 +352,11 @@ class Piece {
 			if (currentColumn - 2 >= 0) {
 
 				if (currentRow - 1 >= 0) {
-					pieceOnPosition = board[currentRow - 1][currentColumn - 2][1];
+					pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn - 2));
 	
 					// Handling Left Column Downward Movement.
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 						possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 						!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
@@ -366,11 +365,11 @@ class Piece {
 				}
 
 				if (currentRow + 1 <= 7) {
-					pieceOnPosition = board[currentRow + 1][currentColumn - 2][1];
+					pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn - 2));
 	
 					// Handling Left Column Upward Movement.
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 						possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 						!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
@@ -383,11 +382,11 @@ class Piece {
 			if (currentColumn + 2 <= 7) {
 
 				if (currentRow - 1 >= 0) {
-					pieceOnPosition = board[currentRow - 1][currentColumn + 2][1];
+					pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn + 2));
 	
 					// Handling Right Column Upward Movement.
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 						possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 						!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
@@ -396,11 +395,11 @@ class Piece {
 				}
 
 				if (currentRow + 1 <= 7) {
-					pieceOnPosition = board[currentRow + 1][currentColumn + 2][1];
+					pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn + 2));
 	
 					// Handling Right Column Downward Movement.
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 						possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 						!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
@@ -414,7 +413,7 @@ class Piece {
 		function checkIfEnemyPawnCanCapture() {
 			const possibleProtectionPieceTypes = [ PieceTypes.pawn ];
 
-			if (pieceOnCurrentPositon === null) throw new Error('Invalid operation on current location! Piece not found.');
+			if (!pieceOnCurrentPositon) throw new Error('Invalid operation on current location! Piece not found.');
 
 			if (pieceOnCurrentPositon.getColor() === ColorTypes.black) {
 
@@ -424,10 +423,10 @@ class Piece {
 						(currentRow >= 0 && currentRow <= 7) &&
 						(currentColumn - 1 >= 0 || currentColumn + 1 <= 7)
 					) {
-						pieceOnPosition = board[currentRow][currentColumn - 1][1];
+						pieceOnPosition = board.get(getPositionString(currentRow, currentColumn - 1));
 					
 						if (
-							pieceOnPosition !== null &&
+							pieceOnPosition &&
 							pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 							possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 							(pieceOnPosition instanceof Pawn) && !pieceOnPosition.isPinned()
@@ -436,10 +435,10 @@ class Piece {
 							return toLeft || toRight;
 						}
 						
-						pieceOnPosition = board[currentRow][currentColumn + 1][1];
+						pieceOnPosition = board.get(getPositionString(currentRow, currentColumn + 1));
 						
 						if (
-							pieceOnPosition !== null &&
+							pieceOnPosition &&
 							pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 							possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 							(pieceOnPosition instanceof Pawn) && !pieceOnPosition.isPinned()
@@ -455,19 +454,19 @@ class Piece {
                     (currentColumn - 1 >= 0 || currentColumn + 1 <= 7)
 				) {
 					
-					pieceOnPosition = board[currentRow - 1][currentColumn - 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn - 1));
 					
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 						possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 						!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
 					) return true;
 					
-					pieceOnPosition = board[currentRow - 1][currentColumn + 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn + 1));
 					
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 						possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 						!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
@@ -482,10 +481,10 @@ class Piece {
 						(currentRow >= 0 && currentRow <= 7) &&
 						(currentColumn - 1 >= 0 || currentColumn + 1 <= 7)
 					) {
-						pieceOnPosition = board[currentRow][currentColumn - 1][1];
+						pieceOnPosition = board.get(getPositionString(currentRow, currentColumn - 1));
 					
 						if (
-							pieceOnPosition !== null &&
+							pieceOnPosition &&
 							pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 							possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 							(pieceOnPosition instanceof Pawn) && !pieceOnPosition.isPinned()
@@ -494,10 +493,10 @@ class Piece {
 							return toLeft || toRight;
 						}
 						
-						pieceOnPosition = board[currentRow][currentColumn + 1][1];
+						pieceOnPosition = board.get(getPositionString(currentRow, currentColumn + 1));
 						
 						if (
-							pieceOnPosition !== null &&
+							pieceOnPosition &&
 							pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 							possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 							(pieceOnPosition instanceof Pawn) && !pieceOnPosition.isPinned()
@@ -513,19 +512,19 @@ class Piece {
                     (currentColumn - 1 >= 0 || currentColumn + 1 <= 7)
 				) {
 					
-					pieceOnPosition = board[currentRow + 1][currentColumn - 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn - 1));
 					
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 						possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 						!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
 					) return true;
 					
-					pieceOnPosition = board[currentRow + 1][currentColumn + 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn + 1));
 					
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== pieceOnCurrentPositon.getColor() &&
 						possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 						!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
@@ -545,11 +544,11 @@ class Piece {
 
 	verifyPin(board: BoardType) {
 
-		const currentRow = this.currentPosition[0];
-		const currentColumn = this.currentPosition[1];
+		const currentRow = +this.currentPosition[0];
+		const currentColumn = +this.currentPosition[1];
 
-		const pieceOnCurrentPositon = board[currentRow][currentColumn][1];
-		if (pieceOnCurrentPositon === null) throw new Error('Invalid operation on current location! Piece not found.');
+		const pieceOnCurrentPositon = board.get(getPositionString(currentRow, currentColumn))
+		if (!pieceOnCurrentPositon) throw new Error('Invalid operation on current location! Piece not found.');
 
 		const maxDistanceFromEdge = Math.max(currentRow, 7 - currentRow, currentColumn, 7 - currentColumn);
 
@@ -590,7 +589,7 @@ class Piece {
 		let allyKingFoundDownAndLeft = false;
 		let allyKingFoundDownAndRight = false;
 
-		let pieceOnPosition: PieceType | null = null;
+		let pieceOnPosition: PieceType | undefined;
 
 		while (steps <= maxDistanceFromEdge) {
 
@@ -605,9 +604,9 @@ class Piece {
 				moveLeftBy >= 0
 			) {
 				
-				pieceOnPosition = board[currentRow][moveLeftBy][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, moveLeftBy));
 
-				if (pieceOnPosition !== null) {
+				if (pieceOnPosition) {
 					continueLeft = false;
 	
 					if (pieceOnPosition.getColor() === pieceOnCurrentPositon.getColor()) {
@@ -629,9 +628,9 @@ class Piece {
 				moveRightBy <= 7
 			) {
 				
-				pieceOnPosition = board[currentRow][moveRightBy][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, moveRightBy));
 
-				if (pieceOnPosition !== null) {
+				if (pieceOnPosition) {
 					continueRight = false;
 					if (pieceOnPosition.getColor() === pieceOnCurrentPositon.getColor()) {
 						allyKingFoundRight = pieceOnPosition.getType() === PieceTypes.king;
@@ -652,9 +651,9 @@ class Piece {
 				moveUpBy <= 7
 			) {
 
-				pieceOnPosition = board[moveUpBy][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(moveUpBy, currentColumn));
 
-				if (pieceOnPosition !== null) {
+				if (pieceOnPosition) {
 					continueUp = false;
 	
 					if (pieceOnPosition.getColor() === pieceOnCurrentPositon.getColor()) {
@@ -676,9 +675,9 @@ class Piece {
 				moveDownBy >= 0
 			) {
 
-				pieceOnPosition = board[moveDownBy][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(moveDownBy, currentColumn));
 
-				if (pieceOnPosition !== null) {
+				if (pieceOnPosition) {
 					continueDown = false;
 					if (pieceOnPosition.getColor() === pieceOnCurrentPositon.getColor()) {
 						allyKingFoundDown = pieceOnPosition.getType() === PieceTypes.king;
@@ -699,9 +698,9 @@ class Piece {
 				(moveUpBy <= 7 && moveLeftBy >= 0)
 			) {
 
-				pieceOnPosition = board[moveUpBy][moveLeftBy][1];
+				pieceOnPosition = board.get(getPositionString(moveUpBy, moveLeftBy));
 
-				if (pieceOnPosition !== null) {
+				if (pieceOnPosition) {
 					continueUpAndLeft = false;
 					if (pieceOnPosition.getColor() === pieceOnCurrentPositon.getColor()) {
 						allyKingFoundUpAndLeft = pieceOnPosition.getType() === PieceTypes.king;
@@ -722,9 +721,9 @@ class Piece {
 				(moveDownBy >= 0 && moveRightBy <= 7)
 			) {
 
-				pieceOnPosition = board[moveDownBy][moveRightBy][1];
+				pieceOnPosition = board.get(getPositionString(moveDownBy, moveRightBy));
 
-				if (pieceOnPosition !== null) {
+				if (pieceOnPosition) {
 					continueDownAndRight = false;
 					if (pieceOnPosition.getColor() === pieceOnCurrentPositon.getColor()) {
 						allyKingFoundDownAndRight = pieceOnPosition.getType() === PieceTypes.king;
@@ -745,9 +744,9 @@ class Piece {
 				(moveUpBy <= 7 && moveRightBy <= 7)
 			) {
 				
-				pieceOnPosition = board[moveUpBy][moveRightBy][1];
+				pieceOnPosition = board.get(getPositionString(moveUpBy, moveRightBy));
 
-				if (pieceOnPosition !== null) {
+				if (pieceOnPosition) {
 					continueUpAndRight = false;
 					if (pieceOnPosition.getColor() === pieceOnCurrentPositon.getColor()) {
 						allyKingFoundUpAndRight = pieceOnPosition.getType() === PieceTypes.king;
@@ -768,9 +767,9 @@ class Piece {
 				(moveDownBy >= 0 && moveLeftBy >= 0)
 			) {
 
-				pieceOnPosition = board[moveDownBy][moveLeftBy][1];
+				pieceOnPosition = board.get(getPositionString(moveDownBy, moveLeftBy));
 
-				if (pieceOnPosition !== null) {
+				if (pieceOnPosition) {
 					continueDownAndLeft = false;
 					if (pieceOnPosition.getColor() === pieceOnCurrentPositon.getColor()) {
 						allyKingFoundDownAndLeft = pieceOnPosition.getType() === PieceTypes.king;
@@ -814,7 +813,7 @@ class Piece {
 class Pawn extends Piece {
 	promoted: boolean;
 	globalCounterOnFirstMove: number;
-	constructor(currentPosition: number[], color: ColorTypes) {
+	constructor(currentPosition: string, color: ColorTypes) {
 		super(1, currentPosition, color, PieceTypes.pawn, 0, null, null, null);
 		this.promoted = false;
 		this.globalCounterOnFirstMove = 0;
@@ -832,11 +831,11 @@ class Pawn extends Piece {
 		return this.moveCounter;
 	}
 
-	verifyEnPassantSquare(neighbouringPiece: PieceType, currentGlobalMoveCounter: number) {
+	verifyEnPassantSquare(neighbouringPiece: PieceType | undefined, currentGlobalMoveCounter: number) {
 
 		// This logic is incomplete, enpassant is only possible when the opposing piece has moved 2 squares in the first move.
 		return (
-			neighbouringPiece !== null && 
+			neighbouringPiece && 
 			(neighbouringPiece instanceof Pawn) &&
 			neighbouringPiece.getColor() !== this.getColor() && 
 			neighbouringPiece.getMoveCounter() === 1 &&
@@ -850,8 +849,8 @@ class Pawn extends Piece {
 			toRight: false
 		};
 
-		const currentRow = this.currentPosition[0];
-		const currentColumn = this.currentPosition[1];
+		const currentRow = +this.currentPosition[0];
+		const currentColumn = +this.currentPosition[1];
 
 		const pinnedDirection = this.getPinnedDirection(board);
 
@@ -867,13 +866,13 @@ class Pawn extends Piece {
 					this.getColor() === ColorTypes.black
 				)
 			) {
-				
-				if (currentColumn < 7 && this.verifyEnPassantSquare(board[currentRow][currentColumn + 1][1], currentGlobalMoveCounter)) {
+				let possiblePieceOnPosition = board.get(getPositionString(currentRow, currentColumn + 1));
+				if (currentColumn < 7 && this.verifyEnPassantSquare(possiblePieceOnPosition, currentGlobalMoveCounter)) {
 				
 					//!NOTE: Need to handle a rare edge case, where en-passant should not be allowed if king and pawn are in the same row, but are pinned horizontally and an enemy pawn moves 2 squares in between the pawn and the king.
 					let tempCol1 = currentColumn + 1;
 					let tempCol2 = currentColumn;
-					let pieceOnPosition: PieceType = null;
+					let pieceOnPosition: PieceType | undefined;
 					let allyKingPresentOnSameRow = false;
 					let enemyRookOrQueenPresentOnSameRow = false;
 					while (true) {
@@ -882,9 +881,9 @@ class Pawn extends Piece {
 
 						if (tempCol1 <= 7) {
 
-							pieceOnPosition = board[currentRow][tempCol1][1];
+							pieceOnPosition = board.get(getPositionString(currentRow, tempCol1));
 
-							if (pieceOnPosition !== null) {
+							if (pieceOnPosition) {
 								if (pieceOnPosition.getColor() === this.getColor()) {
 									if (pieceOnPosition instanceof King) {
 										allyKingPresentOnSameRow = true;
@@ -904,9 +903,9 @@ class Pawn extends Piece {
 
 						if (tempCol2 >= 0) {
 
-							pieceOnPosition = board[currentRow][tempCol2][1];
+							pieceOnPosition = board.get(getPositionString(currentRow, tempCol2));
 
-							if (pieceOnPosition !== null) {
+							if (pieceOnPosition) {
 								if (pieceOnPosition.getColor() === this.getColor()) {
 									if (pieceOnPosition instanceof King) {
 										allyKingPresentOnSameRow = true;
@@ -930,13 +929,14 @@ class Pawn extends Piece {
 					if (!(allyKingPresentOnSameRow && enemyRookOrQueenPresentOnSameRow))
 						enpassantDirection.toRight = true;
 				}
-
-				if (currentColumn > 0 && this.verifyEnPassantSquare(board[currentRow][currentColumn - 1][1], currentGlobalMoveCounter)) {
+				
+				possiblePieceOnPosition = board.get(getPositionString(currentRow, currentColumn - 1));
+				if (currentColumn > 0 && this.verifyEnPassantSquare(possiblePieceOnPosition, currentGlobalMoveCounter)) {
 					
 					//!NOTE: Need to handle a rare edge case, where en-passant should not be allowed if king and pawn are in the same row, but are pinned horizontally and an enemy pawn moves 2 squares in between the pawn and the king.
 					let tempCol1 = currentColumn - 1;
 					let tempCol2 = currentColumn;
-					let pieceOnPosition: PieceType = null;
+					let pieceOnPosition: PieceType | undefined;
 					let allyKingPresentOnSameRow = false;
 					let enemyRookOrQueenPresentOnSameRow = false;
 
@@ -946,9 +946,9 @@ class Pawn extends Piece {
 
 						if (tempCol1 >= 0) {
 
-							pieceOnPosition = board[currentRow][tempCol1][1];
+							pieceOnPosition = board.get(getPositionString(currentRow, tempCol1));
 
-							if (pieceOnPosition !== null) {
+							if (pieceOnPosition) {
 								if (pieceOnPosition.getColor() === this.getColor()) {
 									if (pieceOnPosition instanceof King) {
 										allyKingPresentOnSameRow = true;
@@ -968,9 +968,9 @@ class Pawn extends Piece {
 
 						if (tempCol2 <= 7) {
 
-							pieceOnPosition = board[currentRow][tempCol2][1];
+							pieceOnPosition = board.get(getPositionString(currentRow, tempCol2));
 
-							if (pieceOnPosition !== null) {
+							if (pieceOnPosition) {
 								if (pieceOnPosition.getColor() === this.getColor()) {
 									if (pieceOnPosition instanceof King) {
 										allyKingPresentOnSameRow = true;
@@ -995,7 +995,6 @@ class Pawn extends Piece {
 						enpassantDirection.toLeft = true;
 				}
 			}
-
 		}
 
 		return enpassantDirection;
@@ -1007,14 +1006,14 @@ class Pawn extends Piece {
 
 		if (this.isCaptured()) return this.legalMoves;
 
-		const currentRow = this.currentPosition[0];
-		const currentColumn = this.currentPosition[1];
+		const currentRow = +this.currentPosition[0];
+		const currentColumn = +this.currentPosition[1];
 
 		const pinnedDirection = this.getPinnedDirection(board);
 
 		if (pinnedDirection !== null && [ PinDirections.fromLeft, PinDirections.fromRight ].includes(pinnedDirection)) return [];
 
-		let pieceOnPosition: PieceType = null;
+		let pieceOnPosition: PieceType | undefined;
 
 		/*
 		 * EnPassant is only possible when the pawn is on the 5th rank and the opposing pawn adjacent to the current pawn moves 2 moves at once, which is only possible when this is the first move of the oppsoing pawn.
@@ -1031,10 +1030,10 @@ class Pawn extends Piece {
 				// Capture Logic
 				if (currentColumn < 7) {
 
-					pieceOnPosition = board[currentRow + 1][currentColumn + 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn + 1));
 					
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						(
 							pinnedDirection === null ||
@@ -1043,15 +1042,15 @@ class Pawn extends Piece {
 								[ PieceTypes.queen, PieceTypes.bishop ].includes(pieceOnPosition.getType())
 							)
 						)
-					) this.legalMoves.push({ position: [ currentRow + 1, currentColumn + 1 ], moveType: currentRow === 6 ? MoveTypes.promoteWithCapture : MoveTypes.capture });
+					) this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn + 1), moveType: currentRow === 6 ? MoveTypes.promoteWithCapture : MoveTypes.capture });
 				}
 
 				if (currentColumn > 0) {
 
-					pieceOnPosition = board[currentRow + 1][currentColumn - 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn - 1));
 					
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						(
 							pinnedDirection === null ||
@@ -1060,24 +1059,24 @@ class Pawn extends Piece {
 								[ PieceTypes.queen, PieceTypes.bishop ].includes(pieceOnPosition.getType())
 							)
 						)					
-					) this.legalMoves.push({ position: [ currentRow + 1, currentColumn - 1 ], moveType: currentRow === 6 ? MoveTypes.promoteWithCapture : MoveTypes.capture });
+					) this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn - 1), moveType: currentRow === 6 ? MoveTypes.promoteWithCapture : MoveTypes.capture });
 				}
 
 				// EnPassant Logic
 				const { toLeft, toRight } = this.verifyEnPassant(board, currentGlobalMoveCounter);
 
-				if (toRight) this.legalMoves.push({ position: [ currentRow + 1, currentColumn + 1 ], moveType: MoveTypes.enpassant });
-				if (toLeft) this.legalMoves.push({ position: [ currentRow + 1, currentColumn - 1 ], moveType: MoveTypes.enpassant });
+				if (toRight) this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn + 1), moveType: MoveTypes.enpassant });
+				if (toLeft) this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn - 1), moveType: MoveTypes.enpassant });
 
 				// Advancing Logic
 				if (pinnedDirection === null || [ PinDirections.fromDown, PinDirections.fromUp ].includes(pinnedDirection)) {
 
-					if (board[currentRow + 1][currentColumn][1] === null) {
+					if (!board.get(getPositionString(currentRow + 1, currentColumn))) {
 
 						// Advancement by 2 steps for pawns on 1st move
-						if (this.moveCounter === 0 && board[currentRow + 2][currentColumn][1] === null)
-							this.legalMoves.push({ position: [ currentRow + 2, currentColumn ], moveType: MoveTypes.advanceTwice });
-						this.legalMoves.push({ position: [ currentRow + 1, currentColumn ], moveType: currentRow === 6 ? MoveTypes.promote : MoveTypes.advance });
+						if (this.moveCounter === 0 && !board.get(getPositionString(currentRow + 2, currentColumn)))
+							this.legalMoves.push({ position: getPositionString(currentRow + 2, currentColumn), moveType: MoveTypes.advanceTwice });
+						this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn), moveType: currentRow === 6 ? MoveTypes.promote : MoveTypes.advance });
 					}
 				}
 
@@ -1094,10 +1093,10 @@ class Pawn extends Piece {
 
 					if (currentColumn < 7) {
 
-						pieceOnPosition = board[currentRow - 1][currentColumn + 1][1];
+						pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn + 1));
 
 						if (
-							pieceOnPosition!== null &&
+							pieceOnPosition &&
 							pieceOnPosition.getColor() !== this.getColor() &&
 							(
 								pinnedDirection === null ||
@@ -1106,14 +1105,14 @@ class Pawn extends Piece {
 									[ PieceTypes.queen, PieceTypes.bishop ].includes(pieceOnPosition.getType())
 								)
 							)
-						) this.legalMoves.push({ position: [ currentRow - 1, currentColumn + 1 ], moveType: currentRow === 1 ? MoveTypes.promoteWithCapture : MoveTypes.capture });
+						) this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn + 1), moveType: currentRow === 1 ? MoveTypes.promoteWithCapture : MoveTypes.capture });
 					}
 
 					if (currentColumn > 0) {
-						pieceOnPosition = board[currentRow - 1][currentColumn - 1][1]
+						pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn - 1))
 						
 						if (
-							pieceOnPosition !== null &&
+							pieceOnPosition &&
 							pieceOnPosition.getColor() !== this.getColor() &&
 							(
 								pinnedDirection == null ||
@@ -1122,7 +1121,7 @@ class Pawn extends Piece {
 									[ PieceTypes.queen, PieceTypes.bishop ].includes(pieceOnPosition.getType())
 								)
 							)
-						) this.legalMoves.push({ position: [ currentRow - 1, currentColumn - 1 ], moveType: currentRow === 1 ? MoveTypes.promoteWithCapture : MoveTypes.capture });
+						) this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn - 1), moveType: currentRow === 1 ? MoveTypes.promoteWithCapture : MoveTypes.capture });
 					}
 				}
 
@@ -1130,18 +1129,18 @@ class Pawn extends Piece {
 
 				const { toLeft, toRight } = this.verifyEnPassant(board, currentGlobalMoveCounter);
 
-				if (toRight) this.legalMoves.push({ position: [ currentRow - 1, currentColumn + 1 ], moveType: MoveTypes.enpassant });
-				if (toLeft) this.legalMoves.push({ position: [ currentRow - 1, currentColumn - 1 ], moveType: MoveTypes.enpassant });
+				if (toRight) this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn + 1), moveType: MoveTypes.enpassant });
+				if (toLeft) this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn - 1), moveType: MoveTypes.enpassant });
 
 				// Advancing Logic
 				if (pinnedDirection === null || [ PinDirections.fromDown, PinDirections.fromUp ].includes(pinnedDirection)) {
 
-					if (board[currentRow - 1][currentColumn][1] === null) {
+					if (!board.get(getPositionString(currentRow - 1, currentColumn))) {
 
 						// Advancement by 2 steps for pawns on 1st move
-						if (this.moveCounter === 0 && board[currentRow - 2][currentColumn][1] === null)
-							this.legalMoves.push({ position: [ currentRow - 2, currentColumn ], moveType: MoveTypes.advanceTwice });
-						this.legalMoves.push({ position: [ currentRow - 1, currentColumn ], moveType: currentRow === 1 ? MoveTypes.promote : MoveTypes.advance });
+						if (this.moveCounter === 0 && !board.get(getPositionString(currentRow - 2, currentColumn)))
+							this.legalMoves.push({ position: getPositionString(currentRow - 2, currentColumn), moveType: MoveTypes.advanceTwice });
+						this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn), moveType: currentRow === 1 ? MoveTypes.promote : MoveTypes.advance });
 					}
 				}
 
@@ -1162,7 +1161,7 @@ class Pawn extends Piece {
 }
 
 class Rook extends Piece {
-	constructor(currentPosition: number[], color: ColorTypes, pinnedDiagonally: PinDirections | null = null, pinnedHorizontally: PinDirections | null = null, pinnedVertically: PinDirections | null = null) {
+	constructor(currentPosition: string, color: ColorTypes, pinnedDiagonally: PinDirections | null = null, pinnedHorizontally: PinDirections | null = null, pinnedVertically: PinDirections | null = null) {
 		super(5, currentPosition, color, PieceTypes.rook, 0, pinnedDiagonally, pinnedHorizontally, pinnedVertically);
 	}
 
@@ -1172,11 +1171,11 @@ class Rook extends Piece {
 
 		if (this.isCaptured()) return this.legalMoves;
 
-		const currentRow = this.currentPosition[0];
-		const currentColumn = this.currentPosition[1];
+		const currentRow = +this.currentPosition[0];
+		const currentColumn = +this.currentPosition[1];
 
-		const pieceOnCurrentPositon = board[currentRow][currentColumn][1];
-		if (pieceOnCurrentPositon === null) throw new Error('Invalid operation on current location! Piece not found.');
+		const pieceOnCurrentPositon = board.get(getPositionString(currentRow, currentColumn));
+		if (!pieceOnCurrentPositon) throw new Error('Invalid operation on current location! Piece not found.');
 
 		// Advancement and Capturing Logic.
 		let moveUpBy = currentRow;
@@ -1188,7 +1187,7 @@ class Rook extends Piece {
 
 		if (pinnedDirection !== null && [ PinDirections.fromDownAndLeft, PinDirections.fromDownAndRight, PinDirections.fromUpAndLeft, PinDirections.fromUpAndRight ].includes(pinnedDirection)) return this.legalMoves;
 
-		let pieceOnPosition: PieceType = null;
+		let pieceOnPosition: PieceType | undefined;
 		
 		while (true) {
 			moveUpBy++;
@@ -1199,12 +1198,12 @@ class Rook extends Piece {
 			// Handling upward movement.			
 			if (moveUpBy <= 7 && (pinnedDirection === null || [ PinDirections.fromUp ].includes(pinnedDirection))) {
 				
-				pieceOnPosition = board[moveUpBy][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(moveUpBy, currentColumn));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ moveUpBy, currentColumn ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(moveUpBy, currentColumn), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ moveUpBy, currentColumn ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(moveUpBy, currentColumn), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveUpBy = 8;
@@ -1218,12 +1217,12 @@ class Rook extends Piece {
 			// Handling downward movement.
 			if (moveDownBy >= 0 && (pinnedDirection === null || [ PinDirections.fromDown ].includes(pinnedDirection))) {
 				
-				pieceOnPosition = board[moveDownBy][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(moveDownBy, currentColumn));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ moveDownBy, currentColumn ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(moveDownBy, currentColumn), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ moveDownBy, currentColumn ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(moveDownBy, currentColumn), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveDownBy = -1;
@@ -1237,12 +1236,12 @@ class Rook extends Piece {
 			// Handling right sliding movement.
 			if (moveRightBy <= 7 && (pinnedDirection === null || [ PinDirections.fromRight ].includes(pinnedDirection))) {
 				
-				pieceOnPosition = board[currentRow][moveRightBy][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, moveRightBy));
 				
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ currentRow, moveRightBy ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(currentRow, moveRightBy), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ currentRow, moveRightBy ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(currentRow, moveRightBy), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveRightBy = 8;
@@ -1256,12 +1255,12 @@ class Rook extends Piece {
 			// Handling left sliding movement.
 			if (moveLeftBy >= 0 && (pinnedDirection === null || [ PinDirections.fromLeft ].includes(pinnedDirection))) {
 
-				pieceOnPosition = board[currentRow][moveLeftBy][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, moveLeftBy));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ currentRow, moveLeftBy ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(currentRow, moveLeftBy), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ currentRow, moveLeftBy ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(currentRow, moveLeftBy), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveLeftBy = -1;
@@ -1281,7 +1280,7 @@ class Rook extends Piece {
 }
 
 class Knight extends Piece {
-	constructor(currentPosition: number[], color: ColorTypes, pinnedDiagonally: PinDirections | null = null, pinnedHorizontally: PinDirections | null = null, pinnedVertically: PinDirections | null = null) {
+	constructor(currentPosition: string, color: ColorTypes, pinnedDiagonally: PinDirections | null = null, pinnedHorizontally: PinDirections | null = null, pinnedVertically: PinDirections | null = null) {
 		super(3, currentPosition, color, PieceTypes.knight, 0, pinnedDiagonally, pinnedHorizontally, pinnedVertically);
 	}
 
@@ -1295,13 +1294,13 @@ class Knight extends Piece {
 
 		if (pinnedDirection !== null) return this.legalMoves;
 
-		const currentRow = this.currentPosition[0];
-		const currentColumn = this.currentPosition[1];
+		const currentRow = +this.currentPosition[0];
+		const currentColumn = +this.currentPosition[1];
 
-		const pieceOnCurrentPositon = board[currentRow][currentColumn][1];
-		if (pieceOnCurrentPositon === null) throw new Error('Invalid operation on current location! Piece not found.');
+		const pieceOnCurrentPositon = board.get(getPositionString(currentRow, currentColumn));
+		if (!pieceOnCurrentPositon) throw new Error('Invalid operation on current location! Piece not found.');
 
-		let pieceOnPosition: PieceType = null;
+		let pieceOnPosition: PieceType | undefined;
 
 		// Knight moves like an octopus.
 
@@ -1311,24 +1310,24 @@ class Knight extends Piece {
 			// Handling Backward Row Left Movement.
 			if (currentColumn - 1 >= 0) {
 
-				pieceOnPosition = board[currentRow - 2][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 2, currentColumn - 1));
 
-				if (pieceOnPosition === null)
-					this.legalMoves.push({ position: [ currentRow - 2, currentColumn - 1 ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition)
+					this.legalMoves.push({ position: getPositionString(currentRow - 2, currentColumn - 1), moveType: MoveTypes.advance });
 				else if (pieceOnPosition.getColor() !== this.getColor())
-					this.legalMoves.push({ position: [ currentRow - 2, currentColumn - 1 ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(currentRow - 2, currentColumn - 1), moveType: MoveTypes.capture });
 
 			}
 
 			// Handling Backward Row Right Movement.
 			if (currentColumn + 1 <= 7) {
 
-				pieceOnPosition = board[currentRow - 2][currentColumn + 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 2, currentColumn + 1));
 
-				if (pieceOnPosition === null)
-					this.legalMoves.push({ position: [ currentRow - 2, currentColumn + 1 ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition)
+					this.legalMoves.push({ position: getPositionString(currentRow - 2, currentColumn + 1), moveType: MoveTypes.advance });
 				else if (pieceOnPosition.getColor() !== this.getColor())
-					this.legalMoves.push({ position: [ currentRow - 2, currentColumn + 1 ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(currentRow - 2, currentColumn + 1), moveType: MoveTypes.capture });
 
 			}
 		}
@@ -1339,24 +1338,24 @@ class Knight extends Piece {
 			// Handling Upward Row Left Movement.
 			if (currentColumn - 1 >= 0) {
 
-				pieceOnPosition = board[currentRow + 2][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 2, currentColumn - 1));
 
-				if (pieceOnPosition === null)
-					this.legalMoves.push({ position: [ currentRow + 2, currentColumn - 1 ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition)
+					this.legalMoves.push({ position: getPositionString(currentRow + 2, currentColumn - 1), moveType: MoveTypes.advance });
 				else if (pieceOnPosition.getColor() !== this.getColor())
-					this.legalMoves.push({ position: [ currentRow + 2, currentColumn - 1 ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(currentRow + 2, currentColumn - 1), moveType: MoveTypes.capture });
 
 			}
 
 			// Handling Upward Row Right Movement.
 			if (currentColumn + 1 <= 7) {
 				
-				pieceOnPosition = board[currentRow + 2][currentColumn + 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 2, currentColumn + 1));
 
-				if (pieceOnPosition === null)
-					this.legalMoves.push({ position: [ currentRow + 2, currentColumn + 1 ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition)
+					this.legalMoves.push({ position: getPositionString(currentRow + 2, currentColumn + 1), moveType: MoveTypes.advance });
 				else if (pieceOnPosition.getColor() !== this.getColor())
-					this.legalMoves.push({ position: [ currentRow + 2, currentColumn + 1 ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(currentRow + 2, currentColumn + 1), moveType: MoveTypes.capture });
 
 			}
 		}
@@ -1367,24 +1366,24 @@ class Knight extends Piece {
 			// Handling Left Column Downward Movement.
 			if (currentRow - 1 >= 0) {
 
-				pieceOnPosition = board[currentRow - 1][currentColumn - 2][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn - 2));
 
-				if (pieceOnPosition === null)
-					this.legalMoves.push({ position: [ currentRow - 1, currentColumn - 2 ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition)
+					this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn - 2), moveType: MoveTypes.advance });
 				else if (pieceOnPosition.getColor() !== this.getColor())
-					this.legalMoves.push({ position: [ currentRow - 1, currentColumn - 2 ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn - 2), moveType: MoveTypes.capture });
 
 			}
 
 			// Handling Left Column Upward Movement.
 			if (currentRow + 1 <= 7) {
 
-				pieceOnPosition = board[currentRow + 1][currentColumn - 2][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn - 2));
 
-				if (pieceOnPosition === null)
-					this.legalMoves.push({ position: [ currentRow + 1, currentColumn - 2 ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition)
+					this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn - 2), moveType: MoveTypes.advance });
 				else if (pieceOnPosition.getColor() !== this.getColor())
-					this.legalMoves.push({ position: [ currentRow + 1, currentColumn - 2 ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn - 2), moveType: MoveTypes.capture });
 
 			}
 		}
@@ -1395,24 +1394,24 @@ class Knight extends Piece {
 			// Handling Right Column Upward Movement.
 			if (currentRow - 1 >= 0) {
 
-				pieceOnPosition = board[currentRow - 1][currentColumn + 2][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn + 2));
 
-				if (pieceOnPosition === null)
-					this.legalMoves.push({ position: [ currentRow - 1, currentColumn + 2 ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition)
+					this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn + 2), moveType: MoveTypes.advance });
 				else if (pieceOnPosition.getColor() !== this.getColor())
-					this.legalMoves.push({ position: [ currentRow - 1, currentColumn + 2 ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn + 2), moveType: MoveTypes.capture });
 
 			}
 
 			// Handling Right Column Downward Movement.
 			if (currentRow + 1 <= 7) {
 
-				pieceOnPosition = board[currentRow + 1][currentColumn + 2][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn + 2));
 
-				if (pieceOnPosition === null)
-					this.legalMoves.push({ position: [ currentRow + 1, currentColumn + 2 ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition)
+					this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn + 2), moveType: MoveTypes.advance });
 				else if (pieceOnPosition.getColor() !== this.getColor())
-					this.legalMoves.push({ position: [ currentRow + 1, currentColumn + 2 ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn + 2), moveType: MoveTypes.capture });
 
 			}
 		}
@@ -1422,7 +1421,7 @@ class Knight extends Piece {
 }
 
 class Bishop extends Piece {
-	constructor(currentPosition: number[], color: ColorTypes, pinnedDiagonally: PinDirections | null = null, pinnedHorizontally: PinDirections | null = null, pinnedVertically: PinDirections | null = null) {
+	constructor(currentPosition: string, color: ColorTypes, pinnedDiagonally: PinDirections | null = null, pinnedHorizontally: PinDirections | null = null, pinnedVertically: PinDirections | null = null) {
 		super(3, currentPosition, color, PieceTypes.bishop, 0, pinnedDiagonally, pinnedHorizontally, pinnedVertically);
 	}
 
@@ -1436,11 +1435,11 @@ class Bishop extends Piece {
 
 		if (pinnedDirection !== null && [ PinDirections.fromDown, PinDirections.fromUp, PinDirections.fromLeft, PinDirections.fromRight ].includes(pinnedDirection)) return this.legalMoves;
 
-		const currentRow = this.currentPosition[0];
-		const currentColumn = this.currentPosition[1];
+		const currentRow = +this.currentPosition[0];
+		const currentColumn = +this.currentPosition[1];
 
-		const pieceOnCurrentPositon = board[currentRow][currentColumn][1];
-		if (pieceOnCurrentPositon === null) throw new Error('Invalid operation on current location! Piece not found.');
+		const pieceOnCurrentPositon = board.get(getPositionString(currentRow, currentColumn));
+		if (!pieceOnCurrentPositon) throw new Error('Invalid operation on current location! Piece not found.');
 
 		// Advancement and Capturing Logic.
 		let moveRightBy = currentColumn;
@@ -1453,7 +1452,7 @@ class Bishop extends Piece {
 		let moveDownAndLeft = true;
 		let moveDownAndRight = true;
 
-		let pieceOnPosition: PieceType = null;
+		let pieceOnPosition: PieceType | undefined;
 
 		while (true) {
 
@@ -1469,12 +1468,12 @@ class Bishop extends Piece {
 				(pinnedDirection === null || [ PinDirections.fromDownAndLeft ].includes(pinnedDirection))
 			) {
 
-				pieceOnPosition = board[moveDownBy][moveLeftBy][1];
+				pieceOnPosition = board.get(getPositionString(moveDownBy, moveLeftBy));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ moveDownBy, moveLeftBy ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(moveDownBy, moveLeftBy), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ moveDownBy, moveLeftBy ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(moveDownBy, moveLeftBy), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveDownAndLeft = false;
@@ -1492,12 +1491,12 @@ class Bishop extends Piece {
 				(pinnedDirection === null || [ PinDirections.fromUpAndLeft ].includes(pinnedDirection))
 			) {
 
-				pieceOnPosition = board[moveUpBy][moveLeftBy][1];
+				pieceOnPosition = board.get(getPositionString(moveUpBy, moveLeftBy));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ moveUpBy, moveLeftBy ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(moveUpBy, moveLeftBy), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ moveUpBy, moveLeftBy ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(moveUpBy, moveLeftBy), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveUpAndLeft = false;
@@ -1515,12 +1514,12 @@ class Bishop extends Piece {
 				(pinnedDirection === null || [ PinDirections.fromDownAndRight ].includes(pinnedDirection))
 			) {
 
-				pieceOnPosition = board[moveDownBy][moveRightBy][1];
+				pieceOnPosition = board.get(getPositionString(moveDownBy, moveRightBy));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ moveDownBy, moveRightBy ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(moveDownBy, moveRightBy), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ moveDownBy, moveRightBy ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(moveDownBy, moveRightBy), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveDownAndRight = false;
@@ -1538,12 +1537,12 @@ class Bishop extends Piece {
 				(pinnedDirection === null || [ PinDirections.fromUpAndRight ].includes(pinnedDirection))
 			) {
 
-				pieceOnPosition = board[moveUpBy][moveLeftBy][1];
+				pieceOnPosition = board.get(getPositionString(moveUpBy, moveLeftBy));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ moveUpBy, moveLeftBy ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(moveUpBy, moveLeftBy), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ moveUpBy, moveLeftBy ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(moveUpBy, moveLeftBy), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveUpAndRight = false;
@@ -1566,7 +1565,7 @@ class Bishop extends Piece {
 }
 
 class Queen extends Piece {
-	constructor(currentPosition: number[], color: ColorTypes, pinnedDiagonally: PinDirections | null = null, pinnedHorizontally: PinDirections | null = null, pinnedVertically: PinDirections | null = null) {
+	constructor(currentPosition: string, color: ColorTypes, pinnedDiagonally: PinDirections | null = null, pinnedHorizontally: PinDirections | null = null, pinnedVertically: PinDirections | null = null) {
 		super(9, currentPosition, color, PieceTypes.queen, 0, pinnedDiagonally, pinnedHorizontally, pinnedVertically);
 	}
 
@@ -1578,11 +1577,11 @@ class Queen extends Piece {
 
 		const pinnedDirection = this.getPinnedDirection(board);
 
-		const currentRow = this.currentPosition[0];
-		const currentColumn = this.currentPosition[1];
+		const currentRow = +this.currentPosition[0];
+		const currentColumn = +this.currentPosition[1];
 
-		const pieceOnCurrentPositon = board[currentRow][currentColumn][1];
-		if (pieceOnCurrentPositon === null) throw new Error('Invalid operation on current location! Piece not found.');
+		const pieceOnCurrentPositon = board.get(getPositionString(currentRow, currentColumn));
+		if (!pieceOnCurrentPositon) throw new Error('Invalid operation on current location! Piece not found.');
 
 		// Advancement and Capturing Logic.
 		let moveRightBy = currentColumn;
@@ -1602,7 +1601,7 @@ class Queen extends Piece {
 		const maxDistanceFromEdge = Math.max(currentRow, 7 - currentRow, currentColumn, 7 - currentColumn);
 		let steps = 0;
 
-		let pieceOnPosition: PieceType = null;
+		let pieceOnPosition: PieceType | undefined;
 
 		while (steps <= maxDistanceFromEdge) {
 
@@ -1614,12 +1613,12 @@ class Queen extends Piece {
 			// Handling upward movement.
 			if (moveUp && moveUpBy <= 7 && (pinnedDirection === null || [ PinDirections.fromUp ].includes(pinnedDirection))) {
 
-				pieceOnPosition = board[moveUpBy][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(moveUpBy, currentColumn));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ moveUpBy, currentColumn ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(moveUpBy, currentColumn), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ moveUpBy, currentColumn ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(moveUpBy, currentColumn), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveUp = false;
@@ -1633,12 +1632,12 @@ class Queen extends Piece {
 			// Handling downward movement.
 			if (moveDown && moveDownBy >= 0 && (pinnedDirection === null || [ PinDirections.fromDown ].includes(pinnedDirection))) {
 
-				pieceOnPosition = board[moveDownBy][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(moveDownBy, currentColumn));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ moveDownBy, currentColumn ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(moveDownBy, currentColumn), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ moveDownBy, currentColumn ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(moveDownBy, currentColumn), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveDown = false;
@@ -1652,12 +1651,12 @@ class Queen extends Piece {
 			// Handling right sliding movement.
 			if (moveRight && moveRightBy <= 7 && (pinnedDirection === null || [ PinDirections.fromRight ].includes(pinnedDirection))) {
 
-				pieceOnPosition = board[currentRow][moveRightBy][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, moveRightBy));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ currentRow, moveRightBy ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(currentRow, moveRightBy), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ currentRow, moveRightBy ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(currentRow, moveRightBy), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveRight = false;
@@ -1671,12 +1670,12 @@ class Queen extends Piece {
 			// Handling left sliding movement.
 			if (moveLeft && moveLeftBy >= 0 && (pinnedDirection === null || [ PinDirections.fromLeft ].includes(pinnedDirection))) {
 
-				pieceOnPosition = board[currentRow][moveLeftBy][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, moveLeftBy));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ currentRow, moveLeftBy ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(currentRow, moveLeftBy), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ currentRow, moveLeftBy ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(currentRow, moveLeftBy), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveLeft = false;
@@ -1694,12 +1693,12 @@ class Queen extends Piece {
 				(pinnedDirection === null || [ PinDirections.fromDownAndLeft ].includes(pinnedDirection))
 			) {
 
-				pieceOnPosition = board[moveDownBy][moveLeftBy][1];
+				pieceOnPosition = board.get(getPositionString(moveDownBy, moveLeftBy));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ moveDownBy, moveLeftBy ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(moveDownBy, moveLeftBy), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ moveDownBy, moveLeftBy ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(moveDownBy, moveLeftBy), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveDownAndLeft = false;
@@ -1717,12 +1716,12 @@ class Queen extends Piece {
 				(pinnedDirection === null || [ PinDirections.fromUpAndLeft ].includes(pinnedDirection))
 			) {
 
-				pieceOnPosition = board[moveUpBy][moveLeftBy][1];
+				pieceOnPosition = board.get(getPositionString(moveUpBy, moveLeftBy));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ moveUpBy, moveLeftBy ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(moveUpBy, moveLeftBy), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ moveUpBy, moveLeftBy ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(moveUpBy, moveLeftBy), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveUpAndLeft = false;
@@ -1740,12 +1739,12 @@ class Queen extends Piece {
 				(pinnedDirection === null || [ PinDirections.fromDownAndRight ].includes(pinnedDirection))
 			) {
 
-				pieceOnPosition = board[moveDownBy][moveRightBy][1];
+				pieceOnPosition = board.get(getPositionString(moveDownBy, moveRightBy));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ moveDownBy, moveRightBy ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(moveDownBy, moveRightBy), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ moveDownBy, moveRightBy ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(moveDownBy, moveRightBy), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveDownAndRight = false;
@@ -1763,12 +1762,12 @@ class Queen extends Piece {
 				(pinnedDirection === null || [ PinDirections.fromUpAndRight ].includes(pinnedDirection))
 			) {
 
-				pieceOnPosition = board[moveUpBy][moveLeftBy][1];
+				pieceOnPosition = board.get(getPositionString(moveUpBy, moveLeftBy));
 
-				if (pieceOnPosition === null) {
-					this.legalMoves.push({ position: [ moveUpBy, moveLeftBy ], moveType: MoveTypes.advance });
+				if (!pieceOnPosition) {
+					this.legalMoves.push({ position: getPositionString(moveUpBy, moveLeftBy), moveType: MoveTypes.advance });
 				} else if (pieceOnPosition.getColor() !== this.getColor()) {
-					this.legalMoves.push({ position: [ moveUpBy, moveLeftBy ], moveType: MoveTypes.capture });
+					this.legalMoves.push({ position: getPositionString(moveUpBy, moveLeftBy), moveType: MoveTypes.capture });
 
 					// Since an opposing piece is found, no more moves in this direction are possible.
 					moveUpAndRight = false;
@@ -1788,16 +1787,16 @@ class Queen extends Piece {
 
 class KingUtils {
 	inCheck: boolean;
-	currentPosition: number[];
+	currentPosition: string;
 	color: ColorTypes;
 	pieceId: string;
 	type: PieceTypes;
 	moveCounter: number;
 	castled: boolean;
-	attackedFrom: number[][];
+	attackedFrom: string[];
 	inDoubleCheck: boolean;
 	legalMoves: ILegalMoves[];
-	constructor(currentPosition: number[], color: ColorTypes, moveCounter = 0) {
+	constructor(currentPosition: string, color: ColorTypes, moveCounter = 0) {
 		this.inCheck = false;
 		this.inDoubleCheck = false;
 		this.currentPosition = currentPosition;
@@ -1814,11 +1813,8 @@ class KingUtils {
 		return this.currentPosition;
 	}
 
-	updateCurrentPosition(updatedPosition: number[]) {
-		if (
-			(updatedPosition[0] < 0 || updatedPosition[0] > 7) ||
-			(updatedPosition[1] < 0 || updatedPosition[1] > 7)
-		) throw new Error('King Position being updated out of bounds!');
+	updateCurrentPosition(updatedPosition: string) {
+		validatePosition(updatedPosition);
 		this.currentPosition = updatedPosition;
 	}
 
@@ -1834,7 +1830,7 @@ class KingUtils {
 		return this.type;
 	}
 
-	moveToPosition(board: ChessBoard, updatedPosition: number[]) {
+	moveToPosition(board: ChessBoard, updatedPosition: string) {
 		board.setBoard(this.getCurrentPosition(), updatedPosition);
 		this.incrementMoveCounter();
 		this.updateCurrentPosition(updatedPosition);
@@ -1863,21 +1859,21 @@ class KingUtils {
 	checkForEnemyKnight(currentRow: number, currentColumn: number, board: BoardType) {
 		const possibleProtectionPieceTypes = [ PieceTypes.knight ];
 
-		let pieceOnPosition: PieceType = null;
+		let pieceOnPosition: PieceType | undefined;
 
 		if (currentRow - 2 >= 0) {
 
 			// Handling Backward Row Left Movement.
 			if (currentColumn - 1 >= 0) {
 
-				pieceOnPosition = board[currentRow - 2][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 2, currentColumn - 1));
 				
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					possibleProtectionPieceTypes.includes(pieceOnPosition.getType())
 				) {
-					this.attackedFrom.push([ currentRow - 2, currentColumn - 1 ]);
+					this.attackedFrom.push(getPositionString(currentRow - 2, currentColumn - 1));
 					return true;
 				}
 			}
@@ -1886,14 +1882,14 @@ class KingUtils {
 			// Handling Backward Row Right Movement.
 			if (currentColumn + 1 <= 7) {
 
-				pieceOnPosition = board[currentRow - 2][currentColumn + 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 2, currentColumn + 1));
 				
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					possibleProtectionPieceTypes.includes(pieceOnPosition.getType())
 				) {
-					this.attackedFrom.push([ currentRow - 2, currentColumn + 1 ]);
+					this.attackedFrom.push(getPositionString(currentRow - 2, currentColumn + 1));
 					return true;
 				}
 			}
@@ -1906,14 +1902,14 @@ class KingUtils {
 			// Handling Upward Row Left Movement.
 			if (currentColumn - 1 >= 0) {
 
-				pieceOnPosition = board[currentRow + 2][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 2, currentColumn - 1));
 				
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					possibleProtectionPieceTypes.includes(pieceOnPosition.getType())
 				) {
-					this.attackedFrom.push([ currentRow + 2, currentColumn - 1 ]);
+					this.attackedFrom.push(getPositionString(currentRow + 2, currentColumn - 1));
 					return true;
 				}
 			}
@@ -1922,14 +1918,14 @@ class KingUtils {
 			// Handling Upward Row Right Movement.
 			if (currentColumn + 1 <= 7) {
 
-				pieceOnPosition = board[currentRow + 2][currentColumn + 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 2, currentColumn + 1));
 				
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					possibleProtectionPieceTypes.includes(pieceOnPosition.getType())
 				) {
-					this.attackedFrom.push([ currentRow + 2, currentColumn + 1 ]);
+					this.attackedFrom.push(getPositionString(currentRow + 2, currentColumn + 1));
 					return true;
 				}
 			}
@@ -1942,14 +1938,14 @@ class KingUtils {
 			// Handling Left Column Downward Movement.
 			if (currentRow - 1 >= 0) {
 
-				pieceOnPosition = board[currentRow - 1][currentColumn - 2][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn - 2));
 				
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					possibleProtectionPieceTypes.includes(pieceOnPosition.getType())
 				) {
-					this.attackedFrom.push([ currentRow - 1, currentColumn - 2 ]);
+					this.attackedFrom.push(getPositionString(currentRow - 1, currentColumn - 2));
 					return true;
 				}
 			}
@@ -1958,14 +1954,14 @@ class KingUtils {
 			// Handling Left Column Upward Movement.
 			if (currentRow + 1 <= 7) {
 
-				pieceOnPosition = board[currentRow + 1][currentColumn - 2][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn - 2));
 				
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					possibleProtectionPieceTypes.includes(pieceOnPosition.getType())
 				) {
-					this.attackedFrom.push([ currentRow + 1, currentColumn - 2 ]);
+					this.attackedFrom.push(getPositionString(currentRow + 1, currentColumn - 2));
 					return true;
 				}
 			}
@@ -1978,14 +1974,14 @@ class KingUtils {
 			// Handling Right Column Upward Movement.
 			if (currentRow - 1 >= 0) {
 
-				pieceOnPosition = board[currentRow - 1][currentColumn + 2][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn + 2));
 				
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					possibleProtectionPieceTypes.includes(pieceOnPosition.getType())
 				) {
-					this.attackedFrom.push([ currentRow - 1, currentColumn + 2 ]);
+					this.attackedFrom.push(getPositionString(currentRow - 1, currentColumn + 2));
 					return true;
 				}
 			}
@@ -1994,14 +1990,14 @@ class KingUtils {
 			// Handling Right Column Downward Movement.
 			if (currentRow + 1 <= 7) {
 
-				pieceOnPosition = board[currentRow + 1][currentColumn + 2][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn + 2));
 				
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					possibleProtectionPieceTypes.includes(pieceOnPosition.getType())
 				) {
-					this.attackedFrom.push([ currentRow + 1, currentColumn + 2 ]);
+					this.attackedFrom.push(getPositionString(currentRow + 1, currentColumn + 2));
 					return true;
 				}
 			}
@@ -2014,7 +2010,7 @@ class KingUtils {
 		
 		const possibleProtectionPieceTypes = [ PieceTypes.pawn ];
 
-		let pieceOnPosition: PieceType = null;
+		let pieceOnPosition: PieceType | undefined;
 
 		if (this.getColor() === ColorTypes.white) {
 			if (
@@ -2022,19 +2018,19 @@ class KingUtils {
 				(currentColumn - 1 >= 0 || currentColumn + 1 <= 7)
 			) {
 				
-				pieceOnPosition = board[currentRow - 1][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn - 1));
 				
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 					!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
 				) return true;
 				
-				pieceOnPosition = board[currentRow - 1][currentColumn + 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn + 1));
 				
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 					!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
@@ -2048,19 +2044,19 @@ class KingUtils {
 				(currentColumn - 1 >= 0 || currentColumn + 1 <= 7)
 			) {
 				
-				pieceOnPosition = board[currentRow + 1][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn - 1));
 				
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 					!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
 				) return true;
 				
-				pieceOnPosition = board[currentRow + 1][currentColumn + 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn + 1));
 				
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					possibleProtectionPieceTypes.includes(pieceOnPosition.getType()) &&
 					!(pieceOnPosition instanceof King) && !pieceOnPosition.isPinned()
@@ -2085,7 +2081,7 @@ class KingUtils {
 
 		const possibleProtectionPieceTypes = [ PieceTypes.king ];
 
-		let pieceOnPosition: PieceType = null;
+		let pieceOnPosition: PieceType | undefined;
 
 		for (const possibleMove of possibleMoves) {
 			const possibleRow = currentRow + possibleMove[0];
@@ -2095,10 +2091,10 @@ class KingUtils {
 				(possibleColumn >= 0 && possibleColumn <= 7)
 			) {
 
-				pieceOnPosition = board[possibleRow][possibleColumn][1];
+				pieceOnPosition = board.get(getPositionString(possibleRow, possibleColumn));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					possibleProtectionPieceTypes.includes(pieceOnPosition.getType())
 				) return true;
@@ -2110,8 +2106,8 @@ class KingUtils {
 
 	checkForEnemyPieces(board: BoardType) {
 
-		const currentRow: number = this.currentPosition[0];
-		const currentColumn: number = this.currentPosition[1];
+		const currentRow: number = +this.currentPosition[0];
+		const currentColumn: number = +this.currentPosition[1];
 
 		const maxDistanceFromEdge = Math.max(currentRow, 7 - currentRow, currentColumn, 7 - currentColumn);
 
@@ -2123,64 +2119,64 @@ class KingUtils {
 		let moveLeftBy = currentColumn;
 
 		const pinnedPiecePositions = {
-			fromUp: [] as number[],
-			fromDown: [] as number[],
-			fromLeft: [] as number[],
-			fromRight: [] as number[],
-			fromUpAndLeft: [] as number[],
-			fromDownAndLeft: [] as number[],
-			fromUpAndRight: [] as number[],
-			fromDownAndRight: [] as number[]
+			fromUp: '',
+			fromDown: '',
+			fromLeft: '',
+			fromRight: '',
+			fromUpAndLeft: '',
+			fromDownAndLeft: '',
+			fromUpAndRight: '',
+			fromDownAndRight: ''
 		};
 
 		const enemyPiecePosition = {
 			fromLeft: {
-				0: [] as number[],
-				1: [] as number[],
-				2: [] as number[]
+				0: '',
+				1: '',
+				2: ''
 			},
 			fromRight: {
-				0: [] as number[],
-				1: [] as number[],
-				2: [] as number[]
+				0: '',
+				1: '',
+				2: ''
 			},
 			fromUp: {
-				0: [] as number[],
-				1: [] as number[],
-				2: [] as number[]
+				0: '',
+				1: '',
+				2: ''
 			},
 			fromDown: {
-				0: [] as number[],
-				1: [] as number[],
-				2: [] as number[]
+				0: '',
+				1: '',
+				2: ''
 			},
 			fromUpAndLeft: {
-				0: [] as number[],
-				1: [] as number[],
-				2: [] as number[],
-				3: [] as number[],
-				4: [] as number[],
+				0: '',
+				1: '',
+				2: '',
+				3: '',
+				4: '',
 			},
 			fromDownAndLeft: {
-				0: [] as number[],
-				1: [] as number[],
-				2: [] as number[],
-				3: [] as number[],
-				4: [] as number[],
+				0: '',
+				1: '',
+				2: '',
+				3: '',
+				4: '',
 			},
 			fromUpAndRight: {
-				0: [] as number[],
-				1: [] as number[],
-				2: [] as number[],
-				3: [] as number[],
-				4: [] as number[],
+				0: '',
+				1: '',
+				2: '',
+				3: '',
+				4: '',
 			},
 			fromDownAndRight: {
-				0: [] as number[],
-				1: [] as number[],
-				2: [] as number[],
-				3: [] as number[],
-				4: [] as number[],
+				0: '',
+				1: '',
+				2: '',
+				3: '',
+				4: '',
 			}
 		};
 
@@ -2189,7 +2185,7 @@ class KingUtils {
 
 		let steps = 0;
 
-		let pieceOnPosition: PieceType = null;
+		let pieceOnPosition: PieceType | undefined;
 
 		while (steps <= maxDistanceFromEdge) {
 
@@ -2204,38 +2200,38 @@ class KingUtils {
 				// One row below king's current position, entire column to the left of kings position. (currentRow - 1, currentColumn--)
 				if (!enemyPiecePosition.fromLeft[2].length) {
 					
-					pieceOnPosition = board[currentRow - 1][moveLeftBy - 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow - 1, moveLeftBy - 1));
 					
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleLinearAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromLeft[2] = [ currentRow - 1, moveLeftBy - 1 ];
+					) enemyPiecePosition.fromLeft[2] = getPositionString(currentRow - 1, moveLeftBy - 1);
 				}
 
 				// Same row king's current position, entire column to the left of kings position. (currentRow, currentColumn--)
 				if (!enemyPiecePosition.fromLeft[1].length) {
 					
-					pieceOnPosition = board[currentRow][moveLeftBy - 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow, moveLeftBy - 1));
 
-					if (pieceOnPosition !== null) {
+					if (pieceOnPosition) {
 						if (pieceOnPosition.getColor() === this.getColor())
-							pinnedPiecePositions.fromLeft = [ currentRow, moveLeftBy - 1 ];
+							pinnedPiecePositions.fromLeft = getPositionString(currentRow, moveLeftBy - 1);
 						else if (possibleLinearAttackingPieces.includes(pieceOnPosition.getType()))
-							enemyPiecePosition.fromLeft[1] = [ currentRow, moveLeftBy - 1 ];
+							enemyPiecePosition.fromLeft[1] = getPositionString(currentRow, moveLeftBy - 1);
 					}
 				}
 
 				// One row above king's current position, entire column to the left of kings position. (currentRow + 1, currentColumn--)
 				if (!enemyPiecePosition.fromLeft[0].length) {
 
-					pieceOnPosition = board[currentRow + 1][moveLeftBy - 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow + 1, moveLeftBy - 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleLinearAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromLeft[0] = [ currentRow + 1, moveLeftBy - 1 ];
+					) enemyPiecePosition.fromLeft[0] = getPositionString(currentRow + 1, moveLeftBy - 1);
 				}
 			}
 
@@ -2245,36 +2241,36 @@ class KingUtils {
 				// Entire column below king's current position, one column to the left of kings position. (currentRow --, currentColumn--)
 				if (!enemyPiecePosition.fromDown[0].length) {
 
-					pieceOnPosition = board[moveDownBy - 1][currentColumn - 1][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy - 1, currentColumn - 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleLinearAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromDown[0] = [ moveDownBy - 1, currentColumn - 1 ];
+					) enemyPiecePosition.fromDown[0] = getPositionString(moveDownBy - 1, currentColumn - 1);
 				}
 
 				if (!enemyPiecePosition.fromDown[1].length) {
 
-					pieceOnPosition = board[moveDownBy - 1][currentColumn][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy - 1, currentColumn));
 
-					if (pieceOnPosition !== null) {
+					if (pieceOnPosition) {
 						if	(pieceOnPosition.getColor() === this.getColor())
-							pinnedPiecePositions.fromDown = [ moveDownBy - 1, currentColumn ];
+							pinnedPiecePositions.fromDown = getPositionString(moveDownBy - 1, currentColumn);
 						else if (possibleLinearAttackingPieces.includes(pieceOnPosition.getType()))
-							enemyPiecePosition.fromDown[1] = [ moveDownBy - 1, currentColumn ];
+							enemyPiecePosition.fromDown[1] = getPositionString(moveDownBy - 1, currentColumn);
 					}
 				}
 
 				if (!enemyPiecePosition.fromDown[2].length) {
 					
-					pieceOnPosition = board[moveDownBy - 1][currentColumn + 1][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy - 1, currentColumn + 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleLinearAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromDown[2] = [ moveDownBy - 1, currentColumn + 1 ];
+					) enemyPiecePosition.fromDown[2] = getPositionString(moveDownBy - 1, currentColumn + 1);
 				}
 			}
 
@@ -2282,36 +2278,36 @@ class KingUtils {
 			if (moveRightBy + 1 <= 7) {
 				if (!enemyPiecePosition.fromRight[2].length) {
 
-					pieceOnPosition = board[currentRow - 1][moveRightBy + 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow - 1, moveRightBy + 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleLinearAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromRight[2] = [ currentRow - 1, moveRightBy + 1 ];
+					) enemyPiecePosition.fromRight[2] = getPositionString(currentRow - 1, moveRightBy + 1);
 				}
 
 				if (!enemyPiecePosition.fromRight[1].length) {
 
-					pieceOnPosition = board[currentRow][moveRightBy + 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow, moveRightBy + 1));
 
-					if (pieceOnPosition !== null) {
+					if (pieceOnPosition) {
 						if (pieceOnPosition.getColor() === this.getColor())
-							pinnedPiecePositions.fromRight = [ currentRow, moveRightBy + 1 ];
+							pinnedPiecePositions.fromRight = getPositionString(currentRow, moveRightBy + 1);
 						else if (possibleLinearAttackingPieces.includes(pieceOnPosition.getType())) 
-							enemyPiecePosition.fromRight[1] = [ currentRow, moveRightBy + 1 ];
+							enemyPiecePosition.fromRight[1] = getPositionString(currentRow, moveRightBy + 1);
 					}
 				}
 
 				if (!enemyPiecePosition.fromRight[0].length) {
 
-					pieceOnPosition = board[currentRow + 1][moveRightBy + 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow + 1, moveRightBy + 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleLinearAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromRight[0] = [ currentRow + 1, moveRightBy + 1 ];
+					) enemyPiecePosition.fromRight[0] = getPositionString(currentRow + 1, moveRightBy + 1);
 				}
 			}
 
@@ -2320,36 +2316,36 @@ class KingUtils {
 				
 				if (!enemyPiecePosition.fromUp[0].length) {
 
-					pieceOnPosition = board[moveUpBy + 1][currentColumn - 1][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy + 1, currentColumn - 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleLinearAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromUp[0] = [ moveUpBy + 1, currentColumn - 1 ];
+					) enemyPiecePosition.fromUp[0] = getPositionString(moveUpBy + 1, currentColumn - 1);
 				}
 
 				if (!enemyPiecePosition.fromUp[1].length) {
 					
-					pieceOnPosition = board[moveUpBy + 1][currentColumn][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy + 1, currentColumn));
 
-					if (pieceOnPosition !== null) {
+					if (pieceOnPosition) {
 						if (pieceOnPosition.getColor() === this.getColor())
-							pinnedPiecePositions.fromUp = [ moveUpBy + 1, currentColumn ];
+							pinnedPiecePositions.fromUp = getPositionString(moveUpBy + 1, currentColumn);
 						else if (possibleLinearAttackingPieces.includes(pieceOnPosition.getType()))
-							enemyPiecePosition.fromUp[1] = [ moveUpBy + 1, currentColumn ];
+							enemyPiecePosition.fromUp[1] = getPositionString(moveUpBy + 1, currentColumn);
 					}
 				}
 
 				if (!enemyPiecePosition.fromUp[2].length) {
 
-					pieceOnPosition = board[moveUpBy + 1][currentColumn + 1][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy + 1, currentColumn + 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleLinearAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromUp[2] = [ moveUpBy + 1, currentColumn + 1 ];
+					) enemyPiecePosition.fromUp[2] = getPositionString(moveUpBy + 1, currentColumn + 1);
 				}
 			}
 
@@ -2363,13 +2359,13 @@ class KingUtils {
 					!enemyPiecePosition.fromUpAndLeft[0].length
 				) {
 
-					pieceOnPosition = board[moveUpBy + 1][moveLeftBy - 1][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy + 1, moveLeftBy - 1));
 
-					if (pieceOnPosition !== null) {
+					if (pieceOnPosition) {
 						if (pieceOnPosition.getColor() === this.getColor())
-							pinnedPiecePositions.fromUpAndLeft = [ moveUpBy + 1, moveLeftBy - 1 ];
+							pinnedPiecePositions.fromUpAndLeft = getPositionString(moveUpBy + 1, moveLeftBy - 1);
 						else if (possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType()))
-							enemyPiecePosition.fromUpAndLeft[0] = [ moveUpBy + 1, moveLeftBy - 1 ];
+							enemyPiecePosition.fromUpAndLeft[0] = getPositionString(moveUpBy + 1, moveLeftBy - 1);
 					}
 
 				}
@@ -2379,13 +2375,13 @@ class KingUtils {
 					!enemyPiecePosition.fromUpAndLeft[1].length
 				) {
 
-					pieceOnPosition = board[moveUpBy][moveLeftBy - 1][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy, moveLeftBy - 1));
 					
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromUpAndLeft[1] = [ moveUpBy, moveLeftBy - 1 ];
+					) enemyPiecePosition.fromUpAndLeft[1] = getPositionString(moveUpBy, moveLeftBy - 1);
 				}
 
 				if (
@@ -2394,13 +2390,13 @@ class KingUtils {
 					!enemyPiecePosition.fromUpAndLeft[2].length
 				) {
 
-					pieceOnPosition = board[moveUpBy - 1][moveLeftBy - 1][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy - 1, moveLeftBy - 1));
 					
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromUpAndLeft[2] = [ moveUpBy - 1, moveLeftBy - 1 ];
+					) enemyPiecePosition.fromUpAndLeft[2] = getPositionString(moveUpBy - 1, moveLeftBy - 1);
 				}
 
 				if (
@@ -2408,13 +2404,13 @@ class KingUtils {
 					!enemyPiecePosition.fromUpAndLeft[3].length
 				) {
 
-					pieceOnPosition = board[moveUpBy + 1][moveLeftBy][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy + 1, moveLeftBy));
 					
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromUpAndLeft[3] = [ moveUpBy + 1, moveLeftBy ];
+					) enemyPiecePosition.fromUpAndLeft[3] = getPositionString(moveUpBy + 1, moveLeftBy);
 				}
 
 				if (
@@ -2423,13 +2419,13 @@ class KingUtils {
 					!enemyPiecePosition.fromUpAndLeft[4].length
 				) {
 
-					pieceOnPosition = board[moveUpBy + 1][moveLeftBy + 1][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy + 1, moveLeftBy + 1));
 					
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromUpAndLeft[4] = [ moveUpBy + 1, moveLeftBy + 1 ];
+					) enemyPiecePosition.fromUpAndLeft[4] = getPositionString(moveUpBy + 1, moveLeftBy + 1);
 				}
 			}
 
@@ -2442,13 +2438,13 @@ class KingUtils {
 					!enemyPiecePosition.fromUpAndRight[0].length
 				) {
 
-					pieceOnPosition = board[moveUpBy + 1][moveRightBy + 1][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy + 1, moveRightBy + 1));
 					
-					if (pieceOnPosition !== null) {
+					if (pieceOnPosition) {
 						if (pieceOnPosition.getColor() === this.getColor())
-							pinnedPiecePositions.fromUpAndRight = [ moveUpBy + 1, moveRightBy + 1 ];
+							pinnedPiecePositions.fromUpAndRight = getPositionString(moveUpBy + 1, moveRightBy + 1);
 						else if (possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType()))
-							enemyPiecePosition.fromUpAndRight[0] = [ moveUpBy + 1, moveRightBy + 1 ];
+							enemyPiecePosition.fromUpAndRight[0] = getPositionString(moveUpBy + 1, moveRightBy + 1);
 					}
 				}
 
@@ -2457,13 +2453,13 @@ class KingUtils {
 					!enemyPiecePosition.fromUpAndRight[1].length
 				) {
 					
-					pieceOnPosition = board[moveUpBy][moveRightBy + 1][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy, moveRightBy + 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromUpAndRight[1] = [ moveUpBy, moveRightBy + 1 ];
+					) enemyPiecePosition.fromUpAndRight[1] = getPositionString(moveUpBy, moveRightBy + 1);
 				}
 
 				if (
@@ -2472,13 +2468,13 @@ class KingUtils {
 					!enemyPiecePosition.fromUpAndRight[2].length
 				) {
 
-					pieceOnPosition = board[moveUpBy - 1][moveRightBy + 1][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy - 1, moveRightBy + 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromUpAndRight[2] = [ moveUpBy - 1, moveRightBy + 1 ];
+					) enemyPiecePosition.fromUpAndRight[2] = getPositionString(moveUpBy - 1, moveRightBy + 1);
 				}
 
 				if (
@@ -2486,13 +2482,13 @@ class KingUtils {
 					!enemyPiecePosition.fromUpAndRight[3].length
 				) {
 
-					pieceOnPosition = board[moveUpBy + 1][moveRightBy][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy + 1, moveRightBy));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromUpAndRight[3] = [ moveUpBy + 1, moveRightBy ];
+					) enemyPiecePosition.fromUpAndRight[3] = getPositionString(moveUpBy + 1, moveRightBy);
 				}
 
 				if (
@@ -2500,13 +2496,13 @@ class KingUtils {
 					moveRightBy - 1 >= 0 &&
 					!enemyPiecePosition.fromUpAndRight[4].length
 				) {
-					pieceOnPosition = board[moveUpBy + 1][moveRightBy - 1][1];
+					pieceOnPosition = board.get(getPositionString(moveUpBy + 1, moveRightBy - 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromUpAndRight[4] = [ moveUpBy + 1, moveRightBy - 1 ];
+					) enemyPiecePosition.fromUpAndRight[4] = getPositionString(moveUpBy + 1, moveRightBy - 1);
 				}
 
 			}
@@ -2520,13 +2516,13 @@ class KingUtils {
 					!enemyPiecePosition.fromDownAndRight[0].length
 				) {
 					
-					pieceOnPosition = board[moveDownBy - 1][moveRightBy + 1][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy - 1, moveRightBy + 1));
 
-					if (pieceOnPosition !== null) {
+					if (pieceOnPosition) {
 						if (pieceOnPosition.getColor() === this.getColor())
-							pinnedPiecePositions.fromDownAndRight = [ moveDownBy - 1, moveRightBy + 1 ];
+							pinnedPiecePositions.fromDownAndRight = getPositionString(moveDownBy - 1, moveRightBy + 1);
 						else if (possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType()))
-							enemyPiecePosition.fromDownAndRight[0] = [ moveDownBy - 1, moveRightBy + 1 ];
+							enemyPiecePosition.fromDownAndRight[0] = getPositionString(moveDownBy - 1, moveRightBy + 1);
 					}
 				}
 
@@ -2535,13 +2531,13 @@ class KingUtils {
 					!enemyPiecePosition.fromDownAndRight[1].length
 				) {
 
-					pieceOnPosition = board[moveDownBy][moveRightBy + 1][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy, moveRightBy + 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromDownAndRight[1] = [ moveDownBy, moveRightBy + 1 ];
+					) enemyPiecePosition.fromDownAndRight[1] = getPositionString(moveDownBy, moveRightBy + 1);
 				}
 
 				if (
@@ -2550,13 +2546,13 @@ class KingUtils {
 					!enemyPiecePosition.fromDownAndRight[2].length
 				) {
 
-					pieceOnPosition = board[moveDownBy + 1][moveRightBy + 1][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy + 1, moveRightBy + 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromDownAndRight[2] = [ moveDownBy + 1, moveRightBy + 1 ];
+					) enemyPiecePosition.fromDownAndRight[2] = getPositionString(moveDownBy + 1, moveRightBy + 1);
 				}
 
 				if (
@@ -2564,13 +2560,13 @@ class KingUtils {
 					!enemyPiecePosition.fromDownAndRight[3].length
 				) {
 
-					pieceOnPosition = board[moveDownBy - 1][moveRightBy][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy - 1, moveRightBy));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromDownAndRight[3] = [ moveDownBy - 1, moveRightBy ];
+					) enemyPiecePosition.fromDownAndRight[3] = getPositionString(moveDownBy - 1, moveRightBy);
 				}
 
 				if (
@@ -2579,13 +2575,13 @@ class KingUtils {
 					!enemyPiecePosition.fromDownAndRight[4].length
 				) {
 
-					pieceOnPosition = board[moveDownBy - 1][moveRightBy - 1][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy - 1, moveRightBy - 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromDownAndRight[4] = [ moveDownBy - 1, moveRightBy - 1 ];
+					) enemyPiecePosition.fromDownAndRight[4] = getPositionString(moveDownBy - 1, moveRightBy - 1);
 				}
 
 			}
@@ -2599,13 +2595,13 @@ class KingUtils {
 					!enemyPiecePosition.fromDownAndLeft[0].length
 				) {
 
-					pieceOnPosition = board[moveDownBy - 1][moveLeftBy - 1][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy - 1, moveLeftBy - 1));
 
-					if (pieceOnPosition !== null) {
+					if (pieceOnPosition) {
 						if (pieceOnPosition.getColor() === this.getColor())
-							pinnedPiecePositions.fromDownAndLeft = [ moveDownBy - 1, moveLeftBy - 1 ];
+							pinnedPiecePositions.fromDownAndLeft = getPositionString(moveDownBy - 1, moveLeftBy - 1);
 						else if (possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType()))
-							enemyPiecePosition.fromDownAndLeft[0] = [ moveDownBy - 1, moveLeftBy - 1 ];
+							enemyPiecePosition.fromDownAndLeft[0] = getPositionString(moveDownBy - 1, moveLeftBy - 1);
 					}
 
 				}
@@ -2615,13 +2611,13 @@ class KingUtils {
 					!enemyPiecePosition.fromDownAndLeft[1].length
 				) {
 
-					pieceOnPosition = board[moveDownBy][moveLeftBy - 1][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy, moveLeftBy - 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromDownAndLeft[1] = [ moveDownBy, moveLeftBy - 1 ];
+					) enemyPiecePosition.fromDownAndLeft[1] = getPositionString(moveDownBy, moveLeftBy - 1);
 				}
 
 				if (
@@ -2630,13 +2626,13 @@ class KingUtils {
 					!enemyPiecePosition.fromDownAndLeft[2].length
 				) {
 
-					pieceOnPosition = board[moveDownBy + 1][moveLeftBy - 1][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy + 1, moveLeftBy - 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromDownAndLeft[2] = [ moveDownBy + 1, moveLeftBy - 1 ];
+					) enemyPiecePosition.fromDownAndLeft[2] = getPositionString(moveDownBy + 1, moveLeftBy - 1);
 				}
 
 				if (
@@ -2644,13 +2640,13 @@ class KingUtils {
 					!enemyPiecePosition.fromDownAndLeft[3].length
 				) {
 
-					pieceOnPosition = board[moveDownBy - 1][moveLeftBy][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy - 1, moveLeftBy));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromDownAndLeft[3] = [ moveDownBy - 1, moveLeftBy ];
+					) enemyPiecePosition.fromDownAndLeft[3] = getPositionString(moveDownBy - 1, moveLeftBy);
 				}
 
 				if (
@@ -2659,13 +2655,13 @@ class KingUtils {
 					!enemyPiecePosition.fromDownAndLeft[4].length
 				) {
 
-					pieceOnPosition = board[moveDownBy - 1][moveLeftBy + 1][1];
+					pieceOnPosition = board.get(getPositionString(moveDownBy - 1, moveLeftBy + 1));
 
 					if (
-						pieceOnPosition !== null &&
+						pieceOnPosition &&
 						pieceOnPosition.getColor() !== this.getColor() &&
 						possibleDiagonalAttackingPieces.includes(pieceOnPosition.getType())
-					) enemyPiecePosition.fromDownAndLeft[4] = [ moveDownBy - 1, moveLeftBy + 1 ];
+					) enemyPiecePosition.fromDownAndLeft[4] = getPositionString(moveDownBy - 1, moveLeftBy + 1);
 				}
 
 			}
@@ -2683,16 +2679,16 @@ class KingUtils {
 			this.markInCheck(false);
 
 
-		if (!enemyPiecePosition.fromLeft[1].length) pinnedPiecePositions.fromLeft = [];
-		if (!enemyPiecePosition.fromRight[1].length) pinnedPiecePositions.fromRight = [];
-		if (!enemyPiecePosition.fromUp[1].length) pinnedPiecePositions.fromUp = [];
-		if (!enemyPiecePosition.fromDown[1].length) pinnedPiecePositions.fromDown = [];
-		if (!enemyPiecePosition.fromUpAndLeft[0].length) pinnedPiecePositions.fromUpAndLeft = [];
-		if (!enemyPiecePosition.fromUpAndRight[0].length) pinnedPiecePositions.fromUpAndRight = [];
-		if (!enemyPiecePosition.fromDownAndLeft[0].length) pinnedPiecePositions.fromDownAndLeft = [];
-		if (!enemyPiecePosition.fromDownAndRight[0].length) pinnedPiecePositions.fromDownAndRight = [];
+		if (!enemyPiecePosition.fromLeft[1].length) pinnedPiecePositions.fromLeft = '';
+		if (!enemyPiecePosition.fromRight[1].length) pinnedPiecePositions.fromRight = '';
+		if (!enemyPiecePosition.fromUp[1].length) pinnedPiecePositions.fromUp = '';
+		if (!enemyPiecePosition.fromDown[1].length) pinnedPiecePositions.fromDown = '';
+		if (!enemyPiecePosition.fromUpAndLeft[0].length) pinnedPiecePositions.fromUpAndLeft = '';
+		if (!enemyPiecePosition.fromUpAndRight[0].length) pinnedPiecePositions.fromUpAndRight = '';
+		if (!enemyPiecePosition.fromDownAndLeft[0].length) pinnedPiecePositions.fromDownAndLeft = '';
+		if (!enemyPiecePosition.fromDownAndRight[0].length) pinnedPiecePositions.fromDownAndRight = '';
 
-		let pieceOnSquare: PieceType = null;
+		let pieceOnSquare: PieceType | undefined;
 		let attackedByEnemeyRookOrQueen = false;
 		let attackedByEnemyBishopOrQueen = false;
 		let isSquareAttackedFromDistance = false;
@@ -2704,18 +2700,18 @@ class KingUtils {
 
 			if (currentRow + 1 <= 7) {
 				
-				pieceOnPosition = board[currentRow][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, currentColumn - 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
 				
-				pieceOnPosition = board[currentRow + 1][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn - 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
@@ -2723,19 +2719,19 @@ class KingUtils {
 
 			if (currentColumn + 1 <= 7) {
 				
-				pieceOnPosition = board[currentRow - 1][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
 
 				
-				pieceOnPosition = board[currentRow - 1][currentColumn + 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn + 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
@@ -2759,9 +2755,9 @@ class KingUtils {
 				attackedByEnemyBishopOrQueen
 			);
 
-			pieceOnSquare = board[currentRow - 1][currentColumn - 1][1];
+			pieceOnSquare = board.get(getPositionString(currentRow - 1, currentColumn - 1));
 
-			if (pieceOnSquare !== null) {
+			if (pieceOnSquare) {
 				if (pieceOnSquare.getColor() !== this.getColor()) {
 
 					const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
@@ -2772,7 +2768,7 @@ class KingUtils {
 					// bottom left square is occupied by enemy piece.
 					if (possibleAttackingPieceTypes.includes(pieceOnSquare.getType())) {
 						this.markInCheck(true);
-						this.attackedFrom.push([ currentRow - 1, currentColumn - 1 ]);
+						this.attackedFrom.push(getPositionString(currentRow - 1, currentColumn - 1));
 						if (
 							!isSquareAttackedFromDistance &&
 							!(
@@ -2782,7 +2778,7 @@ class KingUtils {
 							) &&
 							!protectedByPieceInProximity
 						)
-							this.legalMoves.push({ position: [ currentRow - 1, currentColumn - 1 ], moveType: MoveTypes.capture });
+							this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn - 1), moveType: MoveTypes.capture });
 
 					} else if (
 						!isSquareAttackedFromDistance &&
@@ -2793,7 +2789,7 @@ class KingUtils {
 						) &&
 						!protectedByPieceInProximity
 					) {
-						this.legalMoves.push({ position: [ currentRow - 1, currentColumn - 1 ], moveType: MoveTypes.capture });
+						this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn - 1), moveType: MoveTypes.capture });
 					}
 				} else if (enemyPiecePosition.fromDownAndLeft[0].length && !(pieceOnSquare instanceof King)) {
 
@@ -2810,10 +2806,10 @@ class KingUtils {
 				) &&
 				!protectedByPieceInProximity
 			) {
-				this.legalMoves.push({ position: [ currentRow - 1, currentColumn - 1 ], moveType: MoveTypes.advance });
+				this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn - 1), moveType: MoveTypes.advance });
 			} else if (enemyPiecePosition.fromDownAndLeft[0].length) {
 				this.markInCheck(true);
-				this.attackedFrom.push([ currentRow - 1, currentColumn - 1 ]);
+				this.attackedFrom.push(getPositionString(currentRow - 1, currentColumn - 1));
 			}
 		}
 
@@ -2824,18 +2820,18 @@ class KingUtils {
 
 			if (currentRow + 1 <= 7) {
 				
-				pieceOnPosition = board[currentRow][currentColumn + 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, currentColumn + 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
 				
-				pieceOnPosition = board[currentRow + 1][currentColumn + 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn + 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
@@ -2843,19 +2839,19 @@ class KingUtils {
 
 			if (currentColumn - 1 >= 0) {
 				
-				pieceOnPosition = board[currentRow - 1][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
 
 				
-				pieceOnPosition = board[currentRow - 1][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn - 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
@@ -2879,9 +2875,9 @@ class KingUtils {
 				attackedByEnemyBishopOrQueen
 			);
 
-			pieceOnSquare = board[currentRow - 1][currentColumn + 1][1];
+			pieceOnSquare = board.get(getPositionString(currentRow - 1, currentColumn + 1));
 
-			if (pieceOnSquare !== null) {
+			if (pieceOnSquare) {
 				if (pieceOnSquare.getColor() !== this.getColor()) {
 
 					const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
@@ -2892,7 +2888,7 @@ class KingUtils {
 					// bottom right square is occupied by enemy piece.
 					if (possibleAttackingPieceTypes.includes(pieceOnSquare.getType())) {
 						this.markInCheck(true);
-						this.attackedFrom.push([ currentRow - 1, currentColumn + 1 ]);
+						this.attackedFrom.push(getPositionString(currentRow - 1, currentColumn + 1));
 						if (
 							!isSquareAttackedFromDistance &&
 							!(
@@ -2902,7 +2898,7 @@ class KingUtils {
 							) &&
 							!protectedByPieceInProximity
 						)
-							this.legalMoves.push({ position: [ currentRow - 1, currentColumn + 1 ], moveType: MoveTypes.capture });
+							this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn + 1), moveType: MoveTypes.capture });
 
 					} else if (
 						!isSquareAttackedFromDistance &&
@@ -2913,7 +2909,7 @@ class KingUtils {
 						) &&
 						!protectedByPieceInProximity
 					) {
-						this.legalMoves.push({ position: [ currentRow - 1, currentColumn + 1 ], moveType: MoveTypes.capture });
+						this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn + 1), moveType: MoveTypes.capture });
 					}
 				} else if (enemyPiecePosition.fromDownAndRight[0].length && !(pieceOnSquare instanceof King)) {
 
@@ -2930,10 +2926,10 @@ class KingUtils {
 				) &&
 				!protectedByPieceInProximity
 			) {
-				this.legalMoves.push({ position: [ currentRow - 1, currentColumn + 1 ], moveType: MoveTypes.advance });
+				this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn + 1), moveType: MoveTypes.advance });
 			} else if (enemyPiecePosition.fromDownAndRight[0].length) {
 				this.markInCheck(true);
-				this.attackedFrom.push([ currentRow - 1, currentColumn + 1 ]);
+				this.attackedFrom.push(getPositionString(currentRow - 1, currentColumn + 1));
 			}
 		}
 
@@ -2944,19 +2940,19 @@ class KingUtils {
 
 			if (currentRow - 1 >= 0) {
 				
-				pieceOnPosition = board[currentRow][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, currentColumn - 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
 
 				
-				pieceOnPosition = board[currentRow - 1][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn - 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
@@ -2964,19 +2960,19 @@ class KingUtils {
 
 			if (currentColumn + 1 <= 7) {
 				
-				pieceOnPosition = board[currentRow + 1][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
 
 				
-				pieceOnPosition = board[currentRow + 1][currentColumn + 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn + 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
@@ -3000,9 +2996,9 @@ class KingUtils {
 				attackedByEnemyBishopOrQueen
 			);
 
-			pieceOnSquare = board[currentRow + 1][currentColumn - 1][1];
+			pieceOnSquare = board.get(getPositionString(currentRow + 1, currentColumn - 1));
 
-			if (pieceOnSquare !== null) {
+			if (pieceOnSquare) {
 				if (pieceOnSquare.getColor() !== this.getColor()) {
 
 					const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
@@ -3013,7 +3009,7 @@ class KingUtils {
 					// top left square is occupied by enemy piece.
 					if (possibleAttackingPieceTypes.includes(pieceOnSquare.getType())) {
 						this.markInCheck(true);
-						this.attackedFrom.push([ currentRow + 1, currentColumn - 1 ]);
+						this.attackedFrom.push(getPositionString(currentRow + 1, currentColumn - 1));
 						if (
 							!isSquareAttackedFromDistance &&
 							!(
@@ -3023,7 +3019,7 @@ class KingUtils {
 							) &&
 							!protectedByPieceInProximity
 						)
-							this.legalMoves.push({ position: [ currentRow + 1, currentColumn - 1 ], moveType: MoveTypes.capture });
+							this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn - 1), moveType: MoveTypes.capture });
 
 					} else if (
 						!isSquareAttackedFromDistance &&
@@ -3034,7 +3030,7 @@ class KingUtils {
 						) &&
 						!protectedByPieceInProximity
 					) {
-						this.legalMoves.push({ position: [ currentRow + 1, currentColumn - 1 ], moveType: MoveTypes.capture });
+						this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn - 1), moveType: MoveTypes.capture });
 					}
 				} else if (enemyPiecePosition.fromUpAndLeft[0].length && !(pieceOnSquare instanceof King)) {
 
@@ -3051,10 +3047,10 @@ class KingUtils {
 				) &&
 				!protectedByPieceInProximity
 			) {
-				this.legalMoves.push({ position: [ currentRow + 1, currentColumn - 1 ], moveType: MoveTypes.advance });
+				this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn - 1), moveType: MoveTypes.advance });
 			} else if (enemyPiecePosition.fromUpAndLeft[0].length) {
 				this.markInCheck(true);
-				this.attackedFrom.push([ currentRow + 1, currentColumn - 1 ]);
+				this.attackedFrom.push(getPositionString(currentRow + 1, currentColumn - 1));
 			}
 		}
 
@@ -3065,18 +3061,18 @@ class KingUtils {
 
 			if (currentRow - 1 >= 0) {
 				
-				pieceOnPosition = board[currentRow][currentColumn + 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, currentColumn + 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
 				
-					pieceOnPosition = board[currentRow - 1][currentColumn + 1][1];
+					pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn + 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
@@ -3084,19 +3080,19 @@ class KingUtils {
 
 			if (currentColumn - 1 >= 0) {
 				
-				pieceOnPosition = board[currentRow + 1][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
 
 				
-				pieceOnPosition = board[currentRow + 1][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn - 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor() &&
 					[ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnPosition.getType())
 				) protectedByPieceInProximity = true;
@@ -3120,9 +3116,9 @@ class KingUtils {
 				attackedByEnemyBishopOrQueen
 			);
 
-			pieceOnSquare = board[currentRow + 1][currentColumn + 1][1];
+			pieceOnSquare = board.get(getPositionString(currentRow + 1, currentColumn + 1));
 
-			if (pieceOnSquare !== null) {
+			if (pieceOnSquare) {
 				if (pieceOnSquare.getColor() !== this.getColor()) {
 
 					const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
@@ -3133,7 +3129,7 @@ class KingUtils {
 					// top right square is occupied by enemy piece.
 					if (possibleAttackingPieceTypes.includes(pieceOnSquare.getType())) {
 						this.markInCheck(true);
-						this.attackedFrom.push([ currentRow + 1, currentColumn + 1 ]);
+						this.attackedFrom.push(getPositionString(currentRow + 1, currentColumn + 1));
 						if (
 							!isSquareAttackedFromDistance &&
 							!(
@@ -3143,7 +3139,7 @@ class KingUtils {
 							) &&
 							!protectedByPieceInProximity
 						)
-							this.legalMoves.push({ position: [ currentRow + 1, currentColumn + 1 ], moveType: MoveTypes.capture });
+							this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn + 1), moveType: MoveTypes.capture });
 
 					} else if (
 						!isSquareAttackedFromDistance &&
@@ -3154,7 +3150,7 @@ class KingUtils {
 						) &&
 						!protectedByPieceInProximity
 					) {
-						this.legalMoves.push({ position: [ currentRow + 1, currentColumn + 1 ], moveType: MoveTypes.capture });
+						this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn + 1), moveType: MoveTypes.capture });
 					}
 				} else if (enemyPiecePosition.fromUpAndRight[0].length && !(pieceOnSquare instanceof King)) {
 
@@ -3171,10 +3167,10 @@ class KingUtils {
 				) &&
 				!protectedByPieceInProximity
 			) {
-				this.legalMoves.push({ position: [ currentRow + 1, currentColumn + 1 ], moveType: MoveTypes.advance });
+				this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn + 1), moveType: MoveTypes.advance });
 			} else if (enemyPiecePosition.fromUpAndRight[0].length) {
 				this.markInCheck(true);
-				this.attackedFrom.push([ currentRow + 1, currentColumn + 1 ]);
+				this.attackedFrom.push(getPositionString(currentRow + 1, currentColumn + 1));
 			}
 		}
 
@@ -3183,41 +3179,41 @@ class KingUtils {
 
 			let protectedByPieceInProximity = false;
 
-			// if (currentColumn + 1 <= 7) {
+			if (currentColumn + 1 <= 7) {
 				
-			// 	pieceOnPosition = board[currentRow][currentColumn + 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, currentColumn + 1));
 
-			// 	if (
-			// 		pieceOnPosition !== null &&
-			// 		pieceOnPosition.getColor() !== this.getColor()
-			// 	) {
-			// 		const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
+				if (
+					pieceOnPosition &&
+					pieceOnPosition.getColor() !== this.getColor()
+				) {
+					const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
 
-			// 		if (this.getColor() === ColorTypes.white)
-			// 			possibleAttackingPieceTypes.push(PieceTypes.pawn);
+					if (this.getColor() === ColorTypes.white)
+						possibleAttackingPieceTypes.push(PieceTypes.pawn);
 
-			// 		if (possibleAttackingPieceTypes.includes(pieceOnPosition.getType()))
-			// 			protectedByPieceInProximity = true;
-			// 	}
-			// }
+					if (possibleAttackingPieceTypes.includes(pieceOnPosition.getType()))
+						protectedByPieceInProximity = true;
+				}
+			}
 
-			// if (currentColumn - 1 >= 0) {
+			if (currentColumn - 1 >= 0) {
 				
-			// 	pieceOnPosition = board[currentRow][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, currentColumn - 1));
 
-			// 	if (
-			// 		pieceOnPosition !== null &&
-			// 		pieceOnPosition.getColor() !== this.getColor()
-			// 	) {
-			// 		const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
+				if (
+					pieceOnPosition &&
+					pieceOnPosition.getColor() !== this.getColor()
+				) {
+					const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
 
-			// 		if (this.getColor() === ColorTypes.white)
-			// 			possibleAttackingPieceTypes.push(PieceTypes.pawn);
+					if (this.getColor() === ColorTypes.white)
+						possibleAttackingPieceTypes.push(PieceTypes.pawn);
 
-			// 		if (possibleAttackingPieceTypes.includes(pieceOnPosition.getType()))
-			// 			protectedByPieceInProximity = true;
-			// 	}
-			// }
+					if (possibleAttackingPieceTypes.includes(pieceOnPosition.getType()))
+						protectedByPieceInProximity = true;
+				}
+			}
 
 			attackedByEnemeyRookOrQueen = (
 				enemyPiecePosition.fromLeft[1].length ||
@@ -3237,15 +3233,15 @@ class KingUtils {
 				attackedByEnemyBishopOrQueen
 			);
 
-			pieceOnSquare = board[currentRow][currentColumn - 1][1];
+			pieceOnSquare = board.get(getPositionString(currentRow, currentColumn - 1));
 
-			if (pieceOnSquare !== null) {
+			if (pieceOnSquare) {
 				if (pieceOnSquare.getColor() !== this.getColor()) {
 
 					// bottom left square is occupied by enemy piece.
 					if ([ PieceTypes.rook, PieceTypes.queen ].includes(pieceOnSquare.getType())) {
 						this.markInCheck(true);
-						this.attackedFrom.push([ currentRow, currentColumn - 1 ]);
+						this.attackedFrom.push(getPositionString(currentRow, currentColumn - 1));
 						if (
 							!isSquareAttackedFromDistance &&
 							!(
@@ -3255,7 +3251,7 @@ class KingUtils {
 							) &&
 							!protectedByPieceInProximity
 						)
-							this.legalMoves.push({ position: [ currentRow, currentColumn - 1 ], moveType: MoveTypes.capture });
+							this.legalMoves.push({ position: getPositionString(currentRow, currentColumn - 1), moveType: MoveTypes.capture });
 
 					} else if (
 						!isSquareAttackedFromDistance &&
@@ -3266,7 +3262,7 @@ class KingUtils {
 						) &&
 						!protectedByPieceInProximity
 					) {
-						this.legalMoves.push({ position: [ currentRow, currentColumn - 1 ], moveType: MoveTypes.capture });
+						this.legalMoves.push({ position: getPositionString(currentRow, currentColumn - 1), moveType: MoveTypes.capture });
 					}
 				} else if (enemyPiecePosition.fromLeft[1].length && !(pieceOnSquare instanceof King)) {
 
@@ -3282,10 +3278,10 @@ class KingUtils {
 				) &&
 				!protectedByPieceInProximity
 			) {
-				this.legalMoves.push({ position: [ currentRow, currentColumn - 1 ], moveType: MoveTypes.advance });
+				this.legalMoves.push({ position: getPositionString(currentRow, currentColumn - 1), moveType: MoveTypes.advance });
 			} else if (enemyPiecePosition.fromLeft[1].length) {
 				this.markInCheck(true);
-				this.attackedFrom.push([ currentRow, currentColumn - 1 ]);
+				this.attackedFrom.push(getPositionString(currentRow, currentColumn - 1));
 			}
 		}
 
@@ -3296,10 +3292,10 @@ class KingUtils {
 
 			if (currentColumn + 1 <= 7) {
 				
-				pieceOnPosition = board[currentRow][currentColumn + 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, currentColumn + 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor()
 				) {
 					const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
@@ -3314,10 +3310,10 @@ class KingUtils {
 
 			if (currentColumn - 1 >= 0) {
 				
-				pieceOnPosition = board[currentRow][currentColumn - 1][1];
+				pieceOnPosition = board.get(getPositionString(currentRow, currentColumn - 1));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor()
 				) {
 					const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
@@ -3348,15 +3344,15 @@ class KingUtils {
 				attackedByEnemyBishopOrQueen
 			);
 
-			pieceOnSquare = board[currentRow][currentColumn + 1][1];
+			pieceOnSquare = board.get(getPositionString(currentRow, currentColumn + 1));
 
-			if (pieceOnSquare !== null) {
+			if (pieceOnSquare) {
 				if (pieceOnSquare.getColor() !== this.getColor()) {
 
 					// bottom left square is occupied by enemy piece.
 					if ([ PieceTypes.bishop, PieceTypes.queen ].includes(pieceOnSquare.getType())) {
 						this.markInCheck(true);
-						this.attackedFrom.push([ currentRow, currentColumn + 1 ]);
+						this.attackedFrom.push(getPositionString(currentRow, currentColumn + 1));
 						if (
 							!isSquareAttackedFromDistance &&
 							!(
@@ -3366,7 +3362,7 @@ class KingUtils {
 							) &&
 							!protectedByPieceInProximity
 						)
-							this.legalMoves.push({ position: [ currentRow, currentColumn + 1 ], moveType: MoveTypes.capture });
+							this.legalMoves.push({ position: getPositionString(currentRow, currentColumn + 1), moveType: MoveTypes.capture });
 
 					} else if (
 						!isSquareAttackedFromDistance &&
@@ -3377,7 +3373,7 @@ class KingUtils {
 						) &&
 						!protectedByPieceInProximity
 					) {
-						this.legalMoves.push({ position: [ currentRow, currentColumn + 1 ], moveType: MoveTypes.capture });
+						this.legalMoves.push({ position: getPositionString(currentRow, currentColumn + 1), moveType: MoveTypes.capture });
 					}
 				} else if (enemyPiecePosition.fromRight[1].length && !(pieceOnSquare instanceof King)) {
 
@@ -3394,10 +3390,10 @@ class KingUtils {
 				) &&
 				!protectedByPieceInProximity
 			) {
-				this.legalMoves.push({ position: [ currentRow, currentColumn + 1 ], moveType: MoveTypes.advance });
+				this.legalMoves.push({ position: getPositionString(currentRow, currentColumn + 1), moveType: MoveTypes.advance });
 			} else if (enemyPiecePosition.fromRight[1].length) {
 				this.markInCheck(true);
-				this.attackedFrom.push([ currentRow, currentColumn + 1 ]);
+				this.attackedFrom.push(getPositionString(currentRow, currentColumn + 1));
 			}
 		}
 
@@ -3408,10 +3404,10 @@ class KingUtils {
 
 			if (currentRow + 1 <= 7) {
 				
-				pieceOnPosition = board[currentRow + 1][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor()
 				) {
 					const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
@@ -3426,10 +3422,10 @@ class KingUtils {
 
 			if (currentRow - 1 >= 0) {
 				
-				pieceOnPosition = board[currentRow - 1][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor()
 				) {
 					const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
@@ -3460,15 +3456,15 @@ class KingUtils {
 				attackedByEnemyBishopOrQueen
 			);
 
-			pieceOnSquare = board[currentRow - 1][currentColumn][1];
+			pieceOnSquare = board.get(getPositionString(currentRow - 1, currentColumn));
 
-			if (pieceOnSquare !== null) {
+			if (pieceOnSquare) {
 				if (pieceOnSquare.getColor() !== this.getColor()) {
 
 					// bottom left square is occupied by enemy piece.
 					if ([ PieceTypes.bishop, PieceTypes.queen ].includes(pieceOnSquare.getType())) {
 						this.markInCheck(true);
-						this.attackedFrom.push([ currentRow - 1, currentColumn ]);
+						this.attackedFrom.push(getPositionString(currentRow - 1, currentColumn));
 						if (
 							!isSquareAttackedFromDistance &&
 							!(
@@ -3478,7 +3474,7 @@ class KingUtils {
 							) &&
 							!protectedByPieceInProximity
 						)
-							this.legalMoves.push({ position: [ currentRow - 1, currentColumn ], moveType: MoveTypes.capture });
+							this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn), moveType: MoveTypes.capture });
 
 					} else if (
 						!isSquareAttackedFromDistance &&
@@ -3489,7 +3485,7 @@ class KingUtils {
 						) &&
 						!protectedByPieceInProximity
 					) {
-						this.legalMoves.push({ position: [ currentRow - 1, currentColumn ], moveType: MoveTypes.capture });
+						this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn), moveType: MoveTypes.capture });
 					}
 				} else if (enemyPiecePosition.fromDown[1].length && !(pieceOnSquare instanceof King)) {
 
@@ -3506,10 +3502,10 @@ class KingUtils {
 				) &&
 				!protectedByPieceInProximity
 			) {
-				this.legalMoves.push({ position: [ currentRow - 1, currentColumn ], moveType: MoveTypes.advance });
+				this.legalMoves.push({ position: getPositionString(currentRow - 1, currentColumn), moveType: MoveTypes.advance });
 			} else if (enemyPiecePosition.fromDown[1].length) {
 				this.markInCheck(true);
-				this.attackedFrom.push([ currentRow - 1, currentColumn ]);
+				this.attackedFrom.push(getPositionString(currentRow - 1, currentColumn));
 			}
 		}
 
@@ -3520,10 +3516,10 @@ class KingUtils {
 
 			if (currentRow + 1 <= 7) {
 				
-				pieceOnPosition = board[currentRow + 1][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(currentRow + 1, currentColumn));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor()
 				) {
 					const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
@@ -3538,10 +3534,10 @@ class KingUtils {
 
 			if (currentRow - 1 >= 0) {
 				
-				pieceOnPosition = board[currentRow - 1][currentColumn][1];
+				pieceOnPosition = board.get(getPositionString(currentRow - 1, currentColumn));
 
 				if (
-					pieceOnPosition !== null &&
+					pieceOnPosition &&
 					pieceOnPosition.getColor() !== this.getColor()
 				) {
 					const possibleAttackingPieceTypes = [ PieceTypes.bishop, PieceTypes.queen ];
@@ -3572,15 +3568,15 @@ class KingUtils {
 				attackedByEnemyBishopOrQueen
 			);
 
-			pieceOnSquare = board[currentRow + 1][currentColumn][1];
+			pieceOnSquare = board.get(getPositionString(currentRow + 1, currentColumn));
 
-			if (pieceOnSquare !== null) {
+			if (pieceOnSquare) {
 				if (pieceOnSquare.getColor() !== this.getColor()) {
 
 					// bottom left square is occupied by enemy piece.
 					if ([ PieceTypes.bishop, PieceTypes.queen ].includes(pieceOnSquare.getType())) {
 						this.markInCheck(true);
-						this.attackedFrom.push([ currentRow + 1, currentColumn ]);
+						this.attackedFrom.push(getPositionString(currentRow + 1, currentColumn));
 						if (
 							!isSquareAttackedFromDistance &&
 							!(
@@ -3590,7 +3586,7 @@ class KingUtils {
 							) &&
 							!protectedByPieceInProximity
 						)
-							this.legalMoves.push({ position: [ currentRow + 1, currentColumn ], moveType: MoveTypes.capture });
+							this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn), moveType: MoveTypes.capture });
 
 					} else if (
 						!isSquareAttackedFromDistance &&
@@ -3600,7 +3596,7 @@ class KingUtils {
 							this.checkForEnemyKing(currentRow + 1, currentColumn, board)
 						) &&
 						!protectedByPieceInProximity) {
-						this.legalMoves.push({ position: [ currentRow + 1, currentColumn ], moveType: MoveTypes.capture });
+						this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn), moveType: MoveTypes.capture });
 					}
 				} else if (enemyPiecePosition.fromUp[1].length && !(pieceOnSquare instanceof King)) {
 
@@ -3617,10 +3613,10 @@ class KingUtils {
 				) &&
 				!protectedByPieceInProximity
 			) {
-				this.legalMoves.push({ position: [ currentRow + 1, currentColumn ], moveType: MoveTypes.advance });
+				this.legalMoves.push({ position: getPositionString(currentRow + 1, currentColumn), moveType: MoveTypes.advance });
 			} else if (enemyPiecePosition.fromUp[1].length) {
 				this.markInCheck(true);
-				this.attackedFrom.push([ currentRow + 1, currentColumn ]);
+				this.attackedFrom.push(getPositionString(currentRow + 1, currentColumn));
 			}
 		}
 
@@ -3642,18 +3638,18 @@ class KingUtils {
 class King extends KingUtils {
 
 	getLegalMoves(board: BoardType) {
-		const currentRow = this.currentPosition[0];
+		const currentRow = +this.currentPosition[0];
 
 		this.legalMoves = this.checkForEnemyPieces(board);
 
 		// Check if Castling is possible.
 		const canCastle = this.canCastle(board);
 		if (canCastle.kingSide)
-			this.legalMoves.push({ position: [ currentRow, 7 ], moveType: MoveTypes.castle });
+			this.legalMoves.push({ position: getPositionString(currentRow, 7), moveType: MoveTypes.castle });
 
 
 		if (canCastle.queenSide)
-			this.legalMoves.push({ position: [ currentRow, 0 ], moveType: MoveTypes.castle });
+			this.legalMoves.push({ position: getPositionString(currentRow, 0), moveType: MoveTypes.castle });
 
 
 		if (!this.legalMoves.length && this.inCheck) {
@@ -3665,7 +3661,7 @@ class King extends KingUtils {
 	}
 
 	// This function overrides the current position of the piece with the updated position.
-	makeMove(board: ChessBoard, updatedPosition: number[]) {
+	makeMove(board: ChessBoard, updatedPosition: string) {
 		this.moveToPosition(board, updatedPosition);
 	}
 
@@ -3678,21 +3674,21 @@ class King extends KingUtils {
 			};
 		}
 
-		const currentRow = this.currentPosition[0];
-		const currentColumn = this.currentPosition[1];
+		const currentRow = +this.currentPosition[0];
+		const currentColumn = +this.currentPosition[1];
 
 		let kingSide = true;
 
 		// Checks if there a piece on the queen's square, if there is then queen side castling is not possible.
-		let queenSide = board[currentRow][currentColumn - 1][1] === null;
+		let queenSide = board.has(getPositionString(currentRow, currentColumn - 1));
 
 		let kingSideColumn = currentColumn + 1;
 		let queenSideColumn = currentColumn - 2;
 
 		while (true) {
 
-			if (kingSide && kingSideColumn <= 7 && board[currentRow][kingSideColumn][1] !== null) kingSide = false;
-			if (queenSide && (queenSideColumn >= 0 && board[currentRow][queenSideColumn][1] !== null)) queenSide = false;
+			if (kingSide && kingSideColumn <= 7 && board.get(getPositionString(currentRow, kingSideColumn))) kingSide = false;
+			if (queenSide && (queenSideColumn >= 0 && board.get(getPositionString(currentRow, queenSideColumn)))) queenSide = false;
 
 			kingSideColumn++;
 			queenSideColumn--;
@@ -3702,9 +3698,9 @@ class King extends KingUtils {
 		}
 
 		if (kingSide) {
-			const kingSidePiece = board[currentRow][7][1];
+			const kingSidePiece = board.get(getPositionString(currentRow, 7));
 			if (
-				kingSidePiece !== null &&
+				kingSidePiece &&
 				!(kingSidePiece instanceof King) &&
 				!(kingSidePiece.getType() === PieceTypes.rook && kingSidePiece.getColor() === this.getColor() && kingSidePiece.getMoveCounter() === 0)
 			)
@@ -3713,9 +3709,9 @@ class King extends KingUtils {
 		}
 
 		if (queenSide) {
-			const queenSidePiece = board[currentRow][0][1];
+			const queenSidePiece = board.get(getPositionString(currentRow, 0));
 			if (
-				queenSidePiece !== null &&
+				queenSidePiece &&
 				!(queenSidePiece instanceof King) &&
 				!(queenSidePiece.getType() === PieceTypes.rook && queenSidePiece.getColor() === this.getColor() && queenSidePiece.getMoveCounter() === 0)
 			)
@@ -3729,19 +3725,21 @@ class King extends KingUtils {
 		};
 	}
 
-	performCastling(boardEntity: ChessBoard, updatedPosition: number[]) {
+	performCastling(chessBoard: ChessBoard, updatedPosition: string) {
 
-		const castleKingSide = updatedPosition[1] === 7;
-		const rook = boardEntity.board[updatedPosition[0]][updatedPosition[1]][1];
+		const currentRow = +updatedPosition[0];
+		const currentColumn = +updatedPosition[1];
+		const castleKingSide = currentColumn === 7;
+		const rook = chessBoard.getBoard().get(updatedPosition);
 
+		if (!rook) throw new Error('Rook not found during castling.');
+		
 		if (castleKingSide) {
-			if (rook !== null)
-				rook.makeMove(boardEntity, [ updatedPosition[0], 5 ]);
-			this.makeMove(boardEntity, [ updatedPosition[0], 6 ]);
+			rook.makeMove(chessBoard, getPositionString(currentRow, 5));
+			this.makeMove(chessBoard, getPositionString(currentRow, 6));
 		} else {
-			if (rook !== null)
-				rook.makeMove(boardEntity, [ updatedPosition[0], 3 ]);
-			this.makeMove(boardEntity, [ updatedPosition[0], 2 ]);
+			rook.makeMove(chessBoard, getPositionString(currentRow, 3));
+			this.makeMove(chessBoard, getPositionString(currentRow, 2));
 		}
 		this.castled = true;
 	}
