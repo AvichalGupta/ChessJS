@@ -11,7 +11,7 @@
 <body>
     <h1>Socket.IO Client</h1>
     <button onclick="sendMessage()">Start Game</button>
-    <div id="response"></div>
+    <div id="response" style="color: aliceblue;"></div>
 
     <div class="chess-container">
         <div class="chess-board" id="chessBoard"></div>
@@ -53,7 +53,6 @@
             }
 
             function pieceSquareOnClick(piecePosition) {
-                console.log('inside onclick', piecePosition);
                 socket.emit('getLegalMoves', {
                     piecePosition: `${piecePosition[0]}${piecePosition[1]}`,
                 })
@@ -75,7 +74,6 @@
                 });
 
                 socket.on('nextPlayer', (data) => {
-                    console.log('next player: ', data);
                     const pieceOnPosition = data.pieceOnPosition;
 
                     const row = +data.fromPosition[0];
@@ -100,7 +98,6 @@
                 document.getElementById('response').innerText = `Server says: ${data.message}`;
                 chessBoard.innerHTML = '';
 
-                console.log('d: ', data.game);
                 const chessBoardFromBackend = data.game.chessBoard.board;
 
                 for (let i = 0; i < 8; i++) {

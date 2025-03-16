@@ -1,3 +1,5 @@
+
+Part 1
 Refactoring:
 
 1. Change 2D Array to map
@@ -40,3 +42,125 @@ Solution 1:
 
 Solution 2:
     1. Requires extensive code changes.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Part 2
+
+Websocket implementations.
+
+About websockets:
+    Websockets are a relatively new technology enabling bi-direction communication between client and server over a single shared connection.
+
+Advantages:
+    - Low latency between client/server due to single connection.
+    - Encryption using wss
+    - Max message size is 100Mb.
+
+Disadvantages:
+    - No inbuilt security features.
+    - No rate limiting.
+    - No way to prevent DDos, as messages are sent over the same connection the servers buffer gets full, leading to out of memory errors.
+    - Is relatively new and thus unsupported in some cases, like users behind corporate VPN's/firewalls. Leading to usage of long-polling(HTTP) as a fallback.
+
+Implementing a vanilla websocket
+    Client - Front end, player 1 and player 2.
+    Server - Backend Chess Engine.
+
+    - Rooms must be created, to handle chess game between 2 live players.
+    - Use wss, to encrypt messages from client.
+    - Verifying client and server messages. 
+        Server can verify client messages by verifying origin header. Server can additionally verify using HMAC
+        Client can verify server messages using HMAC verification, ask chatgpt Sign Server Messages with HMAC (Tamper Detection).
+        worst case: implement encryption on both client and server
+    - Rate limiting must be implemented (check link for possible implementation: https://github.com/uNetworking/uWebSockets.js/issues/335#issuecomment-834141711)
+    - Clocks must be handled at server, to avoid clock freeze in lag situations (check link for explaination: https://support.chess.com/en/articles/8615369-what-is-lag-forgiveness-why-did-the-clocks-suddenly-change).
+
+Sources: 
+ - https://ably.com/topic/scaling-socketio (for connection/message handling comparisons between other libraries like socket.io and vanilla WS)
+ - https://ably.com/topic/sockjs
+ - https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
+ - https://developer.mozilla.org/en-US/docs/Web/API/WebSocketStream
+ - https://developer.mozilla.org/en-US/docs/Web/API/WebTransport_API
+ - https://devcenter.heroku.com/articles/websocket-security (Websockets security)
+
+List of events:
+ -> 'connection' - Initialize chess board, set players colors, initialize and set pieces.
+ -> 'selectPiece' - Fetch legal moves of selected piece.
+ -> 'makeMove' - Perform move from list of legal moves returned from selectPiece event.
+ -> 'inCheck' - Checks if king is attacked and gets all possible moves to block the attack, including, ally piece captures / ally piece path blocks / kings legal moves.
+ -> 'isCheckMated' - Checks if king is checkmated.
+ -> 'isDraw' - Handles all types of draws, 50 move rule / 3 peat repetition / draw by agreement.
+ -> 'isPinned' - Checks if piece being selected for movement is pinned to king.
+
+ Flow of events
+    Client                                                   <->                                             Server
+
+    Button Click                                             -> 
+                                                             <- Create Websocket, send 'connection' event with ChessGame details (board, players, pieces)
+    Get current player send 'isInCheck' event                -> 
+                                                             <- Check if player is in check, return boolean value in 'response' event along with initial event name
+    ^ If in check, send 'getPossibleInterferences' event     -> 
+                                                             <- Return list of non-pinned / non-captured possible moves to block check, send 'response' event along with initial event name
+    ^^ Player clicks on piece to perform action  
+    ^^ Player performs move, send 'interfereWithCheck' event ->            
+                                                             <- Perform move, send
+    ^ If not in check, wait for player to click on piece
+
+    ^^ If time runs out, send 'gameOver' event               ->
+                                                             <- Close Websocket connection, send 'response' event with game over details
+    
+    ^^ Player clicks on piece, send 'selectPiece' event      ->
+                                                             <- Check if piece being moved is pinned to king or captured,
+                                                                    if yes then return 'response' event with no legal moves along with initial event name
+                                                                    If no then get piece legal moves and return 'response' event with the legal moves along with initial event name
+    
+    
+    
+    'connection'
+        -> internally call 'inCheck' event first.
+            -> if possible moves found 
+                -> only allow moves returned in possible moves from 'inCheck' event.
+            -> else
+                -> When piece is clicked
+                    -> fire 'selectPiece' event.
+                        -> return legal moves.
+                
+
+ 
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Part 3
+
+Stockfish API - Computer Chess AI
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Part 4
+
+Matchmaking
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Part 5 
+
+Database Choice, Design and Schema.
+
+User
+ - id (pk serial)
+ - username (varchar(100))
+ - email (varchar(50))
+ - password (text)
+ - total wins (serial)
+ - total losses (serial)
+ - total draws (serial)
+ - total games (serial)
+ - country (varchar(20))
+ - 
+
+Games
+ - gameId (pk bigserial)
+ - player1Id (fk user.id pk)
+ - player2Id (fk user.id pk)
+ - status (varchar(10)) enum (win/loss/draw/forfeit)

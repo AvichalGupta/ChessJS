@@ -1,6 +1,5 @@
 import { Player }  from './player';
-import { PieceType, ColorTypes } from './constants';
-import { Stack } from './datastructures/stack';
+import { ColorTypes } from './constants';
 import { ChessBoard } from './board';
 
 export class ChessGame {
@@ -10,7 +9,6 @@ export class ChessGame {
 	currentMovePlayedBy: Player;
 	constructor() {
 		this.chessBoard = new ChessBoard();
-		console.log('chessBoard: ', this.chessBoard);
 
 		const isEven = new Date().getTime() % 2 == 0;
 		if (isEven) {

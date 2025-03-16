@@ -22,8 +22,6 @@ app.get('/', (req, res) => {
 io.on('connection', (socket) => {
 	const game = new ChessGame();
 
-	console.log('A user connected:', socket.id);
-
 	socket.on('message', (message) => {
 		socket.emit('response', {
 			message: `Server received: ${message}`,
@@ -40,6 +38,7 @@ io.on('connection', (socket) => {
 		const piecePosition = message.piecePosition;
 		console.log('getLegalMoves: ', piecePosition);
 		const legalMoves = game.currentMovePlayedBy.selectPiece(game.chessBoard, piecePosition)
+    	console.log('legalMoves: ', legalMoves);
 		socket.emit('showLegalMoves', {
 			legalMoves,
 			piecePosition

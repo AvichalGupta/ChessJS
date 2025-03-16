@@ -60,13 +60,12 @@ export class Player {
 		return this.piecesCaptured;
 	}
 
-	setPiecesCaptured(chessBoard: ChessBoard) {
+	setPiecesCaptured() {
 		this.piecesCaptured = new Stack(15);
 	}
 
 	selectPiece(chessBoard: ChessBoard, position: string) {
 		const pieceOnPosition = chessBoard.getBoard().get(position);
-		console.log('pieceOnPosition: ', pieceOnPosition);
 		if (
 			!pieceOnPosition ||
 			!(pieceOnPosition instanceof King) && (
@@ -190,10 +189,9 @@ export class Player {
 		}
 		case MoveTypes.castle: {
 			if (!(pieceToBeMoved instanceof King)) throw new Error('Castling attempt on piece that is not of type King!');
+			
 			pieceToBeMoved.performCastling(chessBoard, squareToBeMovedTo);
-			if (pieceToBeMoved.getType() === PieceTypes.king)
-				this.updateAllyKingPosition(pieceToBeMoved.getCurrentPosition());
-
+			this.updateAllyKingPosition(pieceToBeMoved.getCurrentPosition());
 
 			this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: null, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
 			break;
