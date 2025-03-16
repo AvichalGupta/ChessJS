@@ -104,7 +104,7 @@ List of events:
                                                              <- Return list of non-pinned / non-captured possible moves to block check, send 'response' event along with initial event name
     ^^ Player clicks on piece to perform action  
     ^^ Player performs move, send 'interfereWithCheck' event ->            
-                                                             <- Perform move, send
+                                                             <- Perform move, send 
     ^ If not in check, wait for player to click on piece
 
     ^^ If time runs out, send 'gameOver' event               ->
