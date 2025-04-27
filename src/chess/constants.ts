@@ -1,7 +1,12 @@
 import { Stack } from "./datastructures/stack";
-import { Pawn, Rook, Bishop, Queen, Knight, King } from "./pieces";
 
 import * as uuid from 'uuid';
+import { Bishop } from "./pieces/bishop";
+import { King } from "./pieces/king";
+import { Knight } from "./pieces/knight";
+import { Queen } from "./pieces/queen";
+import { Rook } from "./pieces/rook";
+import { Pawn } from "./pieces/helper";
 
 enum PieceTypes {
 	pawn = 'Pawn',
@@ -61,12 +66,34 @@ interface IPlayerMove {
 	move: IMove;
 	pieceToBeMoved: PieceType;
 	pieceToBeCaptured: PieceType | null;
-	promotionPieceType: PieceType | null;
+	promotionPieceType: string | null;
 	inGamePoints: number;
 	piecesCaptured: Stack<PieceType>;
 }
 
 interface IMove { position: string, moveType: MoveTypes };
+
+interface DefaultDirectionStates {
+	fromUp: boolean,
+	fromDown: boolean,
+	fromRight: boolean,
+	fromLeft: boolean,
+	fromUpAndRight: boolean,
+	fromUpAndLeft: boolean,
+	fromDownAndRight: boolean,
+	fromDownAndLeft: boolean
+}
+
+enum DirectionEnum {
+	fromUp = 'fromUp',
+	fromDown = 'fromDown',
+	fromRight = 'fromRight',
+	fromLeft = 'fromLeft',
+	fromUpAndRight = 'fromUpAndRight',
+	fromUpAndLeft = 'fromUpAndLeft',
+	fromDownAndRight = 'fromDownAndRight',
+	fromDownAndLeft = 'fromDownAndLeft'
+}
 
 export {
 	PieceTypes,
@@ -79,5 +106,7 @@ export {
 	PieceType,
 	IPlayerMove,
 	IMove,
-	PromotedPiece
+	PromotedPiece,
+	DefaultDirectionStates,
+	DirectionEnum
 }

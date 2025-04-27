@@ -1,74 +1,202 @@
 import express from 'express';
 import http from 'http';
-import { Server } from 'socket.io';
 import path from 'path';
-const PORT = process.env.PORT || 3002;
+import { WebSocketServer } from 'ws';
 import { ChessGame } from './game';
+
+const PORT = process.env.PORT || 8080;
 
 // Initialize Express
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
 
-// Serve static files from the "public" directory
+// Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Basic route for testing
+// Serve main page
 app.get('/', (req, res) => {
-	res.sendFile(path.join(__dirname, '../public/index.html'));
+    res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// Handle Socket.IO connections
-io.on('connection', (socket) => {
-	const game = new ChessGame();
+// Bind WebSocket server to existing HTTP server
+const wss = new WebSocketServer({ server });
 
-	socket.on('message', (message) => {
-		socket.emit('response', {
-			message: `Server received: ${message}`,
-			game: {
-				...game,
-				chessBoard: {
-					board: Object.fromEntries(game.getBoard())
-				}
-			},
-		});
-	});
+function getMessage(data: any) {
+    try {
+        const messageString = typeof data === 'string' ? data : data.toString('utf8');
+        return JSON.parse(messageString);
+    } catch (error) {
+        console.error('error in getMessage function: ', error);
+    }
+}
 
-	socket.on('getLegalMoves', (message) => {
-		const piecePosition = message.piecePosition;
-		console.log('getLegalMoves: ', piecePosition);
-		const legalMoves = game.currentMovePlayedBy.selectPiece(game.chessBoard, piecePosition)
-    	console.log('legalMoves: ', legalMoves);
-		socket.emit('showLegalMoves', {
-			legalMoves,
-			piecePosition
-		});
-	})
+function getLatestPlayer(chessGame: ChessGame) {
+    return chessGame.getCurrentMovePlayer();
+}
 
-	socket.on('makeMove', (message) => {
-		// console.log('makeMove', message);
-		const piecePosition = message.piecePosition;
-		const chessBoard = game.chessBoard.getBoard();
-		const pieceOnPosition = chessBoard.get(piecePosition);
-		console.log('board before: ', JSON.stringify(game.getBoard()))
-		game.currentMovePlayedBy.makeMove(game.chessBoard, piecePosition, message.legalMove);
-		console.log('board after: ', JSON.stringify(game.getBoard()))
-		game.passMoveToNextPlayer();
-		game.getBoard();
+wss.on('connection', (ws) => {
+    console.log('Client connected');
+    const game = new ChessGame();
 
-		socket.emit('nextPlayer', {
-			fromPosition: piecePosition,
-			toPosition: message.legalMove.position,
-			pieceOnPosition
-		});
-	})
+    // Send initial message
+    ws.send(JSON.stringify({ message: 'Welcome to the WebSocket Server!' }));
 
-	socket.on('disconnect', () => {
-		console.log('User disconnected:', socket.id);
-	});
+    // Handle incoming messages
+    ws.on('message', (data) => {
+        try {
+            const message = getMessage(data);
+            console.log(`Received: ${message.action}`);
+
+            let currentMovePlayedBy = getLatestPlayer(game);
+
+            const action = message.action;
+            switch (action) {
+                case 'startGame': {
+                    ws.send(JSON.stringify({
+                        actionEvent: action,
+                        responseEvent: 'response',
+                        game: {
+                            ...game,
+                            chessBoard: { board: Object.fromEntries(game.getBoard()) }
+                        }
+                    }));
+                    break;
+                }
+                case 'isInCheck': { 
+                    const isInCheck = currentMovePlayedBy.isInCheck(game.getBoard());
+                    
+                    ws.send(JSON.stringify({
+                        actionEvent: action,
+                        responseEvent: 'response',
+                        isInCheck,
+                        game: {
+                            ...game,
+                            chessBoard: { board: Object.fromEntries(game.getBoard()) }
+                        }
+                    }));
+                    break;
+                }
+                case 'getPossibleInterferences': { 
+                    const isInCheck = currentMovePlayedBy.isInCheck(game.getBoard());
+                    if (isInCheck) {
+                        ws.send(JSON.stringify({
+                            actionEvent: action,
+                            responseEvent: 'response',
+                            possibleMoves: currentMovePlayedBy.getAllPossibleCheckInterferences(game.getBoard()),
+                            game: {
+                                ...game,
+                                chessBoard: { board: Object.fromEntries(game.getBoard()) }
+                            }
+                        }));
+                    } else {
+                        // if not in check, no point calling this function. Return error.
+                        ws.send(JSON.stringify({
+                            actionEvent: action,
+                            responseEvent: 'response',
+                            errorMessage: 'King is not in check, cannot get possible interferences.'
+                        }))
+                    }
+                    break;
+                }
+                case 'interfereWithCheck': {
+                    game.passMoveToNextPlayer();
+                    ws.send(JSON.stringify({
+                        actionEvent: action,
+                        responseEvent: 'response',
+                        possibleMoves: currentMovePlayedBy.getAllPossibleCheckInterferences(game.getBoard()),
+                        game: {
+                            ...game,
+                            chessBoard: { board: Object.fromEntries(game.getBoard()) }
+                        }
+                    }));
+                    break;
+                }
+                case 'getLegalMoves': {
+                    const piecePosition = message.piecePosition;
+                    const legalMoves = game.currentMovePlayedBy.selectPiece(game.getChessBoard(), piecePosition);
+
+                    console.log('legalMoves: ', piecePosition, legalMoves);
+                    ws.send(JSON.stringify({
+                        actionEvent: action,
+                        responseEvent: 'response',
+                        legalMoves,
+                        piecePosition,
+                        pieceOnPosition: game.getBoard().get(piecePosition),
+                        game: {
+                            ...game,
+                            chessBoard: { board: Object.fromEntries(game.getBoard()) }
+                        }
+                    }));
+                    break;
+                }
+                case 'makeMove': {
+                    const fromPiecePosition = message.from;
+                    const moveData = {
+                        position: message.to,
+                        moveType: message.moveType
+                    }
+                    const promotionPieceType = message.promotionPieceType;
+                    try {
+                        currentMovePlayedBy.makeMove(game.getChessBoard(), fromPiecePosition, moveData, promotionPieceType);
+                    } catch (error) {
+                        console.log('error while making move: ', error);
+                        ws.send(JSON.stringify({
+                            actionEvent: action,
+                            responseEvent: 'response',
+                            success: false
+                        }));
+                    }
+
+                    game.passMoveToNextPlayer();
+                    ws.send(JSON.stringify({
+                        actionEvent: action,
+                        responseEvent: 'response',
+                        success: true,
+                        from: message.from,
+                        to: message.to,
+                        game: {
+                            ...game,
+                            chessBoard: { board: Object.fromEntries(game.getBoard()) }
+                        }
+                    }));
+                    break;
+                }
+                case 'checkMated': {
+                    ws.send(JSON.stringify({
+                        actionEvent: action,
+                        responseEvent: 'response',
+                        checkMated: currentMovePlayedBy.isCheckMated(game.getBoard()),
+                        game: {
+                            ...game,
+                            chessBoard: { board: Object.fromEntries(game.getBoard()) }
+                        }
+                    }));
+                    break;
+                }
+                case 'gameOver': {
+                    console.log('GAME OVER!!');
+                    break;
+                }
+                case 'isDraw': {
+                    console.log('GAME DRAWW!!!!');
+                    break;
+                }
+                default: {
+                    console.log('Unhandled Switch Case ', action);
+                    break;
+                }
+            }
+        } catch (error) {
+            console.error('Error handling message:', error);
+        }
+    });
+
+    ws.on('close', () => {
+        console.log('User disconnected');
+    });
 });
 
 // Start the server
 server.listen(PORT, () => {
-	console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on http://localhost:${PORT}`);
 });

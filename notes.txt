@@ -86,47 +86,57 @@ Sources:
 
 List of events:
  -> 'connection' - Initialize chess board, set players colors, initialize and set pieces.
- -> 'selectPiece' - Fetch legal moves of selected piece.
+ -> 'isInCheck' - Checks if king is attacked and gets all possible moves to block the attack, including, ally piece captures / ally piece path blocks / kings legal moves.
+ -> 'getPossibleInterferences' - Get list of possible moves to block check.
+ -> 'checkMated' - Marks king as check mated.
  -> 'makeMove' - Perform move from list of legal moves returned from selectPiece event.
- -> 'inCheck' - Checks if king is attacked and gets all possible moves to block the attack, including, ally piece captures / ally piece path blocks / kings legal moves.
- -> 'isCheckMated' - Checks if king is checkmated.
- -> 'isDraw' - Handles all types of draws, 50 move rule / 3 peat repetition / draw by agreement.
- -> 'isPinned' - Checks if piece being selected for movement is pinned to king.
+ -> 'interfereWithCheck' - Perform the move to block check.
+ -> 'getLegalMoves' - Fetch legal moves of selected piece.
+ -> 'gameOver' - Marks game as completed and performs closing actions.
+ -> 'isDraw' - Handles all types of draws, 50 move rule / 3 peat repetition / stalemates / draw by agreement.
+ -> 'response' - A server side event sent to the browser, it contains response data and the initial event type.
+ 
+ Flow of events:
+                                    Client                                                          <->                                             Server
 
- Flow of events
-    Client                                                   <->                                             Server
+    Button Click                                                                                    -> 
+                                                                                                    <- Create Websocket, send 'connection' event with ChessGame details (board, players, pieces)
+    If first move is not done by both players, send 'abortGame' event                               ->
+                                                                                                    <- Close Websocket connection, send 'response' event with game over details.
+    Repeat on every move:
+        Get current player send 'isInCheck' event                                                   -> 
+                                                                                                    <- Check if player is in check, return boolean value in 'response' event along with initial event name
+        
+        ^ If in check, send 'getPossibleInterferences' event                                        -> 
+                                                                                                    <- Return list of non-pinned / non-captured possible moves to block check, send 'response' event along with initial event name
+        
+        ^^ If no list returned, send 'getLegalMoves' event for king                                 ->
+                                                                                                    <- Return kings legal moves, send 'response' event along with initial event name
+        ^^^ If no king legal moves, send 'checkMated' event                                         ->
+                                                                                                    <- Close Websocket connection, send 'response' event with game over details
+        ^^^ If king legal moves, wait for player to perform move
 
-    Button Click                                             -> 
-                                                             <- Create Websocket, send 'connection' event with ChessGame details (board, players, pieces)
-    Get current player send 'isInCheck' event                -> 
-                                                             <- Check if player is in check, return boolean value in 'response' event along with initial event name
-    ^ If in check, send 'getPossibleInterferences' event     -> 
-                                                             <- Return list of non-pinned / non-captured possible moves to block check, send 'response' event along with initial event name
-    ^^ Player clicks on piece to perform action  
-    ^^ Player performs move, send 'interfereWithCheck' event ->            
-                                                             <- Perform move, send 
-    ^ If not in check, wait for player to click on piece
+        ^^^^ Player makes move, send 'makeMove' event with from and to position along with moveType ->
+                                                                                                    <- Perform move, send 'response' event with success or failed status, along with initial event name
+        
+        ^^ If list returned, wait for player to perform move
+        
+        ^^^ Player performs move, send 'interfereWithCheck' event                                   ->            
+                                                                                                    <- Perform move, send 'response' event with success or failed status, along with initial event name
+        
+        ^ If not in check, wait for player to click on piece
 
-    ^^ If time runs out, send 'gameOver' event               ->
-                                                             <- Close Websocket connection, send 'response' event with game over details
-    
-    ^^ Player clicks on piece, send 'selectPiece' event      ->
-                                                             <- Check if piece being moved is pinned to king or captured,
-                                                                    if yes then return 'response' event with no legal moves along with initial event name
-                                                                    If no then get piece legal moves and return 'response' event with the legal moves along with initial event name
-    
-    
-    
-    'connection'
-        -> internally call 'inCheck' event first.
-            -> if possible moves found 
-                -> only allow moves returned in possible moves from 'inCheck' event.
-            -> else
-                -> When piece is clicked
-                    -> fire 'selectPiece' event.
-                        -> return legal moves.
-                
+        ^^ Player clicks on piece, send 'getLegalMoves' event                                       ->
+                                                                                                    <- Check if piece being moved is pinned to king or captured, return 'response' event with no legal moves along with initial event name
+        ^^^ If no legal moves, do nothing and wait for player to make move 
+        ^^^ If legal moves, wait for player to make move.
 
+        ^^^^ Player makes move, send 'makeMove' event with from and to position along with moveType ->
+                                                                                                    <- Perform move, send 'response' event with success or failed status, along with initial event name
+        Send 'nextMove' event to get next player data                                               ->
+                                                                                                    <- Return next players data, send 'playerUpdated' event with next player data.
+            
+    Note: If time runs out, 'gameOver' event will be sent from client to server and server will close the websocket and update the game status.
  
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

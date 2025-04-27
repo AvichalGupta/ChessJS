@@ -1,6 +1,11 @@
 import { BoardType, ColorTypes, PieceType, PromotedPiece } from "./constants";
 import { getPositionString } from "./helper/helper";
-import { Rook, Knight, Bishop, Queen, King, Pawn } from "./pieces";
+import { Bishop } from "./pieces/bishop";
+import { Pawn } from "./pieces/helper";
+import { King } from "./pieces/king";
+import { Knight } from "./pieces/knight";
+import { Queen } from "./pieces/queen";
+import { Rook } from "./pieces/rook";
 
 export class ChessBoard {
     board: BoardType;

@@ -21,8 +21,9 @@ export class ChessGame {
 
 		if (isEven) {
 			this.currentMovePlayedBy = this.player1;
+		} else {
+			this.currentMovePlayedBy = this.player2;
 		}
-		this.currentMovePlayedBy = this.player2;
 	}
 
 	selectPlayers() {
@@ -37,8 +38,9 @@ export class ChessGame {
 
 		if (isEven) {
 			this.currentMovePlayedBy = this.player1;
+		} else {
+			this.currentMovePlayedBy = this.player2;
 		}
-		this.currentMovePlayedBy = this.player2;
 	}
 
 	getCurrentMovePlayer() {
@@ -47,6 +49,10 @@ export class ChessGame {
 
 	getBoard() {
 		return this.chessBoard.getBoard();
+	}
+
+	getChessBoard() {
+		return this.chessBoard;
 	}
 
 	passMoveToNextPlayer() { 

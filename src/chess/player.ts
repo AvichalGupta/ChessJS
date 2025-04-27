@@ -1,8 +1,13 @@
 import { Stack } from './datastructures/stack';
 import { PieceTypes, MoveTypes, ColorTypes, IPlayerMove, PieceType, IMove, PromotedPiece, BoardType } from './constants';
-import { Rook, Knight, Bishop, Queen, King, Pawn } from './pieces';
 import { ChessBoard } from './board';
 import { getPositionString } from './helper/helper';
+import { Bishop } from './pieces/bishop';
+import { King } from './pieces/king';
+import { Knight } from './pieces/knight';
+import { Queen } from './pieces/queen';
+import { Rook } from './pieces/rook';
+import { Pawn } from './pieces/helper';
 
 export class Player {
 	moves: Stack<IPlayerMove>;
@@ -11,6 +16,7 @@ export class Player {
 	inGamePoints: number;
 	piecesCaptured: Stack<PieceType>;
 	allyKingPosition: string;
+	possibleCheckInterferences: Partial<PieceType>[];
 	constructor(color: ColorTypes, name: string) {
 		if (!name || !color) throw new Error('Please provide required fields to create a player!');
 		this.moves = new Stack<IPlayerMove>();
@@ -18,6 +24,7 @@ export class Player {
 		this.name = name;
 		this.inGamePoints = 0;
 		this.piecesCaptured = new Stack<PieceType>(15);
+		this.possibleCheckInterferences = [];
 
 		if (this.getColor() === ColorTypes.white)
 			this.allyKingPosition = getPositionString(0, 4);
@@ -38,21 +45,21 @@ export class Player {
 			pieceType
 		} = pieceInfo;
 		switch (pieceType) {
-		case PieceTypes.rook: {
-			return new Rook(getPositionString(row, column), color);
-		}
-		case PieceTypes.knight: {
-			return new Knight(getPositionString(row, column), color);
-		}
-		case PieceTypes.bishop: {
-			return new Bishop(getPositionString(row, column), color);
-		}
-		case PieceTypes.queen: {
-			return new Queen(getPositionString(row, column), color);
-		}
-		default: {
-			throw new Error(`Cannot promote to a ${pieceType}.`);
-		}
+			case PieceTypes.rook: {
+				return new Rook(getPositionString(row, column), color);
+			}
+			case PieceTypes.knight: {
+				return new Knight(getPositionString(row, column), color);
+			}
+			case PieceTypes.bishop: {
+				return new Bishop(getPositionString(row, column), color);
+			}
+			case PieceTypes.queen: {
+				return new Queen(getPositionString(row, column), color);
+			}
+			default: {
+				throw new Error(`Cannot promote to a ${pieceType}.`);
+			}
 		}
 	}
 
@@ -66,6 +73,7 @@ export class Player {
 
 	selectPiece(chessBoard: ChessBoard, position: string) {
 		const pieceOnPosition = chessBoard.getBoard().get(position);
+		console.log('pieceOnPosition: ', pieceOnPosition);
 		if (
 			!pieceOnPosition ||
 			!(pieceOnPosition instanceof King) && (
@@ -93,7 +101,7 @@ export class Player {
 	}
 
 	// When this function is called, it means that a move is happening. All prelimnary checks on whether this move is possible or not are handled in the selectPiece function.
-	makeMove(chessBoard: ChessBoard, currentPosition: string, move: IMove, promotionPieceType = null) {
+	makeMove(chessBoard: ChessBoard, currentPosition: string, move: IMove, promotionPieceType: PieceTypes | null = null) {
 		if (!move) throw new Error('Move could not be registered!');
 		const { position, moveType } = move;
 
@@ -104,105 +112,115 @@ export class Player {
 		const squareToBeMovedTo = position;
 
 		switch (moveType) {
-		case MoveTypes.advance: {
-			pieceToBeMoved.makeMove(chessBoard, squareToBeMovedTo);
-			if (pieceToBeMoved instanceof King)
+			case MoveTypes.advance: {
+				pieceToBeMoved.makeMove(chessBoard, squareToBeMovedTo);
+				if (pieceToBeMoved instanceof King)
+					this.updateAllyKingPosition(pieceToBeMoved.getCurrentPosition());
+
+				this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: null, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
+				break;
+			}
+			case MoveTypes.advanceTwice: {
+				if (!(pieceToBeMoved instanceof Pawn))
+					throw new Error('Advance Twice attempt on piece that is not of type Pawn!')
+				
+				pieceToBeMoved.makeMove(chessBoard, squareToBeMovedTo);
+				
+				if (pieceToBeMoved.getMoveCounter() === 0)
+					pieceToBeMoved.setFirstMoveGlobalMoveCounter(chessBoard.getGlobalMoveCounter());
+
+				this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: null, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
+				break;
+			}
+			case MoveTypes.capture: {
+				if (!opposingPiece) throw new Error('Opposing piece not found during capture!');
+				if ((opposingPiece instanceof King)) throw new Error('Opposing king cannot be captured.');
+
+				pieceToBeMoved.makeMove(chessBoard, squareToBeMovedTo);
+				if (pieceToBeMoved instanceof King)
+					this.updateAllyKingPosition(pieceToBeMoved.getCurrentPosition());
+
+				opposingPiece.markAsCaptured();
+				this.inGamePoints += opposingPiece.getValue();
+				this.piecesCaptured.push(opposingPiece);
+
+				this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: opposingPiece, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
+				break;
+			}
+			case MoveTypes.promote: {
+				if (!promotionPieceType) throw new Error('Please provide promotion piece type.');
+				if (!(pieceToBeMoved instanceof Pawn)) throw new Error('Invalid promotion attempt!');
+				const promotedPiece = this.fetchPiece({
+					row: +currentPosition[0],
+					column: +currentPosition[1],
+					color: this.getColor(),
+					pieceType: promotionPieceType
+				});
+
+				pieceToBeMoved.makeMove(chessBoard, squareToBeMovedTo);
+				pieceToBeMoved.handlePromotion(chessBoard, promotedPiece);
+				// -1 since the pawn is promoted to a new piece.
+				this.inGamePoints += promotedPiece.getValue() - 1;
+
+				this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: null, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
+				break;
+			}
+			case MoveTypes.promoteWithCapture: {
+				if (!promotionPieceType) throw new Error('Please provide promotion piece type.');
+				if (!(pieceToBeMoved instanceof Pawn)) throw new Error('Invalid promotion attempt!');
+				if (!opposingPiece) throw new Error('Opposing piece not found during capture!');
+				if ((opposingPiece instanceof King)) throw new Error('Opposing king cannot be captured.');
+
+
+				const promotedPiece = this.fetchPiece({
+					row: +currentPosition[0],
+					column: +currentPosition[1],
+					color: this.getColor(),
+					pieceType: promotionPieceType
+				});
+
+				opposingPiece.markAsCaptured();
+
+				pieceToBeMoved.makeMove(chessBoard, squareToBeMovedTo);
+				pieceToBeMoved.handlePromotion(chessBoard, promotedPiece);
+				// -1 since the pawn is promoted to a new piece.
+				this.inGamePoints += promotedPiece.getValue() - 1 + opposingPiece.getValue();
+				this.piecesCaptured.push(opposingPiece);
+
+				this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: opposingPiece, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
+				break;
+			}
+			case MoveTypes.enpassant: {
+
+				if (!(pieceToBeMoved instanceof Pawn)) throw new Error('Enpassant attempt on piece that is not of type Pawn!');
+
+				if (!opposingPiece) throw new Error('Opposing piece not found during capture!');
+				if (!(opposingPiece instanceof Pawn)) throw new Error('Enpassant only allowed on enemy pawn.');
+				
+				opposingPiece.markAsCaptured();
+				pieceToBeMoved.makeMove(chessBoard, squareToBeMovedTo);
+				this.inGamePoints += opposingPiece.getValue();
+				this.piecesCaptured.push(opposingPiece);
+
+				this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: opposingPiece, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
+				break;
+			}
+			case MoveTypes.castle: {
+				if (!(pieceToBeMoved instanceof King)) throw new Error('Castling attempt on piece that is not of type King!');
+				
+				pieceToBeMoved.performCastling(chessBoard, squareToBeMovedTo);
 				this.updateAllyKingPosition(pieceToBeMoved.getCurrentPosition());
 
-			this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: null, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
-			break;
-		}
-		case MoveTypes.advanceTwice: {
-			if (!(pieceToBeMoved instanceof Pawn))
-				throw new Error('Advance Twice attempt on piece that is not of type Pawn!')
-			
-			pieceToBeMoved.makeMove(chessBoard, squareToBeMovedTo);
-			
-			if (pieceToBeMoved.getMoveCounter() === 0)
-				pieceToBeMoved.setFirstMoveGlobalMoveCounter(chessBoard.getGlobalMoveCounter());
-
-			this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: null, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
-			break;
-		}
-		case MoveTypes.capture: {
-			if (!opposingPiece) throw new Error('Opposing piece not found during capture!');
-			if ((opposingPiece instanceof King)) throw new Error('Opposing king cannot be captured.');
-
-			pieceToBeMoved.makeMove(chessBoard, squareToBeMovedTo);
-			if (pieceToBeMoved instanceof King)
-				this.updateAllyKingPosition(pieceToBeMoved.getCurrentPosition());
-
-			opposingPiece.markAsCaptured();
-			this.inGamePoints += opposingPiece.getValue();
-			this.piecesCaptured.push(opposingPiece);
-
-			this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: opposingPiece, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
-			break;
-		}
-		case MoveTypes.promote: {
-			if (!promotionPieceType) throw new Error('Please provide promotion piece type.');
-			if (!(pieceToBeMoved instanceof Pawn)) throw new Error('Invalid promotion attempt!');
-			const promotedPiece = this.fetchPiece(promotionPieceType);
-
-			pieceToBeMoved.makeMove(chessBoard, squareToBeMovedTo);
-			pieceToBeMoved.handlePromotion(chessBoard, promotedPiece);
-			// -1 since the pawn is promoted to a new piece.
-			this.inGamePoints += promotedPiece.getValue() - 1;
-
-			this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: null, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
-			break;
-		}
-		case MoveTypes.promoteWithCapture: {
-			if (!promotionPieceType) throw new Error('Please provide promotion piece type.');
-			if (!(pieceToBeMoved instanceof Pawn)) throw new Error('Invalid promotion attempt!');
-			if (!opposingPiece) throw new Error('Opposing piece not found during capture!');
-			if ((opposingPiece instanceof King)) throw new Error('Opposing king cannot be captured.');
-
-
-			const promotedPiece = this.fetchPiece(promotionPieceType);
-
-			opposingPiece.markAsCaptured();
-
-			pieceToBeMoved.makeMove(chessBoard, squareToBeMovedTo);
-			pieceToBeMoved.handlePromotion(chessBoard, promotedPiece);
-			// -1 since the pawn is promoted to a new piece.
-			this.inGamePoints += promotedPiece.getValue() - 1 + opposingPiece.getValue();
-			this.piecesCaptured.push(opposingPiece);
-
-			this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: opposingPiece, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
-			break;
-		}
-		case MoveTypes.enpassant: {
-
-			if (!(pieceToBeMoved instanceof Pawn)) throw new Error('Enpassant attempt on piece that is not of type Pawn!');
-
-			if (!opposingPiece) throw new Error('Opposing piece not found during capture!');
-			if (!(opposingPiece instanceof Pawn)) throw new Error('Enpassant only allowed on enemy pawn.');
-			
-			opposingPiece.markAsCaptured();
-			pieceToBeMoved.makeMove(chessBoard, squareToBeMovedTo);
-			this.inGamePoints += opposingPiece.getValue();
-			this.piecesCaptured.push(opposingPiece);
-
-			this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: opposingPiece, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
-			break;
-		}
-		case MoveTypes.castle: {
-			if (!(pieceToBeMoved instanceof King)) throw new Error('Castling attempt on piece that is not of type King!');
-			
-			pieceToBeMoved.performCastling(chessBoard, squareToBeMovedTo);
-			this.updateAllyKingPosition(pieceToBeMoved.getCurrentPosition());
-
-			this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: null, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
-			break;
-		}
-		default: {
-			throw new Error(`Invalid Movetype ${moveType}, cannot play move!`);
-		}
+				this.moves.push({ currentPosition, move, pieceToBeMoved, pieceToBeCaptured: null, promotionPieceType, inGamePoints: this.inGamePoints, piecesCaptured: this.piecesCaptured });
+				break;
+			}
+			default: {
+				throw new Error(`Invalid Movetype ${moveType}, cannot play move!`);
+			}
 		}
 	}
 
-	isInCheck(board: BoardType) {
+	isInCheck(board: BoardType): boolean {
 		const allyKingPosition = this.getAllyKingPosition();
 
 		const allyKing = board.get(allyKingPosition);
@@ -212,7 +230,7 @@ export class Player {
 		return allyKing.isInCheck();
 	}
 
-	isInDoubleCheck(board: BoardType) {
+	isInDoubleCheck(board: BoardType): boolean {
 		const allyKingPosition = this.getAllyKingPosition();
 
 		const allyKing = board.get(allyKingPosition);
@@ -222,7 +240,7 @@ export class Player {
 		return allyKing.isInDoubleCheck();
 	}
 
-	isCheckMated(board: BoardType) {
+	isCheckMated(board: BoardType): boolean {
 
 		const allyKingPosition = this.getAllyKingPosition();
 
@@ -240,7 +258,7 @@ export class Player {
 
 		if (!(allyKing instanceof King)) throw new Error('Cannot mark ally king is in check!');
 
-		return allyKing.markInCheck(inCheck);
+		allyKing.markInCheck(inCheck);
 	}
 
 	markInDoubleCheck(board: BoardType, inDoubleCheck: boolean) {
@@ -250,7 +268,30 @@ export class Player {
 
 		if (!(allyKing instanceof King)) throw new Error('Cannot mark ally king is in double check!');
 
-		return allyKing.markInDoubleCheck(inDoubleCheck);
+		allyKing.markInDoubleCheck(inDoubleCheck);
+	}
+
+	getAllPossibleCheckInterferences (board: BoardType) {
+		const allyKingPosition = this.getAllyKingPosition();
+
+		const allyKing = board.get(allyKingPosition);
+
+		if (!(allyKing instanceof King)) throw new Error('Cannot get all possible interferences of ally king!');
+
+		this.updateCheckInterferences(allyKing.handleCheckInterferences(board));
+		return this.getCheckInterferences();
+	}
+
+	getCheckInterferences () {
+		return this.possibleCheckInterferences;
+	}
+
+	updateCheckInterferences(possibleMoves: Partial<PieceType>[]) {
+		this.possibleCheckInterferences = possibleMoves;
+	}
+
+	resetCheckInterferences() {
+		this.updateCheckInterferences([]);
 	}
 
 	getLastMove() {
